@@ -1,7 +1,7 @@
 // ar-whiteboard-server/server.js
 
 const express = require('express');
-const https = require('https');
+const https = require('http');
 const fs = require('fs');
 const path = require('path');
 const socketIo = require('socket.io');
