@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // startSessionTimer();    // Your timer
 
             // Socket.IO Connection
-            socket = io(' https://64c8-152-57-154-115.ngrok-free.app/', { /* transports: ['websocket'] */ });
+            socket = io('https://1e0f-152-57-154-115.ngrok-free.app');
             socket.on('connect', () => {
                 console.log('[SESSION PAGE] Connected to Socket.IO server with ID:', socket.id);
                 localUserId = socket.id;
