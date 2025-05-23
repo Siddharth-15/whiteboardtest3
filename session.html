@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en"> <!-- data-bs-theme will be added by JS for dark/light mode -->
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AR WhiteBoard - Whiteboard Session</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Google Fonts (Poppins & Roboto Mono) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="session-page-body"> <!-- Add class for potential specific body styling -->
+    <!-- tsParticles container -->
+    <div id="tsparticles-bg"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-palette2 me-2"></i> AR WhiteBoard
+            </a>
+            <!-- Session Info Display in Navbar -->
+            <div class="mx-auto d-flex align-items-center">
+                <span class="navbar-text me-3" id="sessionInfoNavbar">
+                    Session: <strong id="activeSessionName">Loading...</strong> (Host: <em id="activeHostName">...</em>)
+                </span>
+                <span class="navbar-text small" id="sessionTimerDisplay"><i class="bi bi-clock me-1"></i>00:00:00</span>
+            </div>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html" title="Go to Homepage">
+                            <i class="bi bi-house-door-fill"></i> <span class="d-lg-none ms-1">Home</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-danger btn-sm me-2" id="leaveSessionBtn" title="Leave Session">
+                            <i class="bi bi-door-closed-fill me-1"></i> Leave
+                        </button>
+                    </li>
+                    <li class="nav-item ms-lg-2">
+                        <button id="themeToggler" class="btn btn-outline-secondary theme-toggle-btn" title="Toggle Theme">
+                            <i class="bi bi-sun-fill icon-sun"></i>
+                            <i class="bi bi-moon-stars-fill icon-moon"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area for Session Page -->
+    <main class="session-main-content">
+        <div class="whiteboard-layout-container">
+            <!-- Toolbar Column -->
+            <div class="toolbar-container p-3 border-end" data-animation="fadeInLeft" data-delay="100">
+                <h5 class="mb-3 text-center">Tools</h5>
+                <div class="tool-group mb-3">
+                    <button class="btn btn-tool active" id="tool-pencil" title="Pencil"><i class="bi bi-pencil-fill"></i></button>
+                    <button class="btn btn-tool" id="tool-eraser" title="Eraser"><i class="bi bi-eraser-fill"></i></button>
+                    <button class="btn btn-tool" id="tool-line" title="Line"><i class="bi bi-slash-lg"></i></button>
+                </div>
+                <div class="tool-group mb-3">
+                    <button class="btn btn-tool" id="tool-rectangle" title="Rectangle"><i class="bi bi-square"></i></button>
+                    <button class="btn btn-tool" id="tool-circle" title="Circle"><i class="bi bi-circle"></i></button>
+                    <button class="btn btn-tool" id="tool-text" title="Text"><i class="bi bi-fonts"></i></button>
+                </div>
+                <hr>
+                <div class="tool-group mb-3 justify-content-around">
+                    <button class="btn btn-tool btn-sm" id="tool-undo" title="Undo" disabled><i class="bi bi-arrow-counterclockwise"></i></button>
+                    <button class="btn btn-tool btn-sm" id="tool-redo" title="Redo" disabled><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <hr>
+                <div class="tool-options mb-3">
+                    <label for="toolColor" class="form-label form-label-sm">Color:</label>
+                    <input type="color" class="form-control form-control-color w-100" id="toolColor" value="#F57C00" title="Choose draw color">
+                </div>
+                <div class="tool-options mb-3">
+                    <label for="lineWidth" class="form-label form-label-sm">Line Width:</label>
+                    <div class="d-flex align-items-center">
+                        <input type="range" class="form-range w-75" min="1" max="50" value="5" id="lineWidth">
+                        <span id="lineWidthValue" class="ms-2 small">5</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="tool-actions d-grid gap-2">
+                    <button class="btn btn-outline-danger btn-sm" id="clearBoardBtn"><i class="bi bi-trash3-fill me-1"></i> Clear Board</button>
+                    <button class="btn btn-outline-success btn-sm" id="saveSessionBtn"><i class="bi bi-save-fill me-1"></i> Save Session</button>
+                </div>
+
+                <hr class="mt-4">
+                <h6 class="mt-3 mb-2 text-center">Participants</h6>
+                <ul class="list-group list-group-flush small" id="participantList">
+                    <li class="list-group-item bg-transparent px-1 py-1" id="hostParticipant">Host: Loading...</li>
+                    <!-- More participants will be added here by JS if implementing real-time features -->
+                </ul>
+            </div>
+
+            <!-- Whiteboard Canvas Column -->
+            <div class="whiteboard-canvas-container flex-grow-1" data-animation="zoomIn" data-delay="200">
+                <canvas id="whiteboardCanvas"></canvas>
+                <!-- Hidden textarea for text tool input -->
+                <textarea id="textToolInput" class="form-control" style="display: none; position: absolute; z-index: 10; border: 1px dashed var(--accent-color-primary); background-color: rgba(var(--primary-bg-rgb), 0.85); color: var(--primary-text); resize: none; padding: 5px; font-family: 'Poppins', sans-serif; overflow-y: hidden;"></textarea>
+                <noscript>
+                    <p class="text-center p-5">Please enable JavaScript to use the whiteboard.</p>
+                </noscript>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- tsParticles Library -->
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+    <!-- Your Custom JS (which now contains all the whiteboard logic) -->
+    <script src="js/script.js"></script>
+
+    <!-- ... (near the end of the body, before your script.js) ... -->
+
+<!-- At the very end of your HTML body, e.g., in dashboard.html -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script> <!-- Integrity removed -->
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script> <!-- Integrity removed -->
+    <script src="js/script.js"></script>
+</body>
+</html>
