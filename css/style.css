@@ -1,0 +1,804 @@
+/* css/style.css - ORANGE THEME */
+
+/* --- Base & Variables --- */
+:root {
+    /* Light Mode (Default) */
+    --primary-bg: #ffffff;
+    --secondary-bg: #fff8f2; /* Very light creamy orange for sections */
+    --primary-text: #2c2520; /* Dark brown/black for text */
+    --secondary-text: #6e5f53; /* Muted brown for secondary text */
+
+    /* === NEW ORANGE ACCENT PALETTE === */
+    --accent-color-primary: #F57C00; /* Strong Orange (e.g., Orange 700) */
+    --accent-color-primary-rgb: 245, 124, 0;
+    --accent-color-secondary: #FFA726; /* Lighter/Brighter Orange (e.g., Orange 400) */
+    --accent-color-secondary-rgb: 255, 167, 38;
+    --accent-color-tertiary: #FFCA28; /* Amber/Yellow for highlights (e.g., Amber 400) */
+    /* ================================= */
+
+    --border-color: #ffe0cc; /* Light orange border */
+    --card-bg: #ffffff;
+    --card-shadow: 0 8px 24px rgba(100, 50, 0, 0.06); /* Softer shadow with orange tint */
+    --card-hover-shadow: 0 12px 35px rgba(var(--accent-color-primary-rgb), 0.15);
+    --navbar-bg: rgba(255, 255, 255, 0.8);
+    --navbar-text: var(--primary-text);
+    --navbar-scroll-bg: rgba(255, 255, 255, 0.95);
+    --navbar-scroll-border: rgba(100, 50, 0, 0.08); /* Orange tinted scroll border */
+    --btn-close-filter: invert(20%) sepia(10%) saturate(500%) hue-rotate(330deg) brightness(90%) contrast(85%);
+
+
+    --font-primary: 'Poppins', sans-serif;
+    --font-secondary: 'Roboto Mono', monospace;
+
+    /* tsParticles colors (Light Mode - ORANGE THEME - These are already set) */
+    --ts-particle-color1: #FF6F00;
+    --ts-particle-color2: #FF9800;
+    --ts-particle-color3: #FFC107;
+    --ts-link-color: #FFD180;
+}
+
+[data-bs-theme="dark"] {
+    --primary-bg: #211d1a; /* Dark warm brown */
+    --secondary-bg: #302a26; /* Slightly lighter warm brown */
+    --primary-text: #f2e9e4; /* Off-white/creamy text */
+    --secondary-text: #b0a197; /* Muted light brown text */
+
+    /* === NEW ORANGE ACCENT PALETTE (Dark Mode) === */
+    --accent-color-primary: #FF9800; /* Brighter Orange (Orange 500) */
+    --accent-color-primary-rgb: 255, 152, 0;
+    --accent-color-secondary: #FFB74D; /* Even Brighter Orange (Orange 300) */
+    --accent-color-secondary-rgb: 255, 183, 77;
+    --accent-color-tertiary: #FFD54F; /* Bright Amber (Amber 300) */
+    /* ============================================ */
+
+    --border-color: #5c4d42; /* Darker orange/brown border */
+    --card-bg: #302a26;
+    --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    --card-hover-shadow: 0 12px 35px rgba(var(--accent-color-primary-rgb), 0.25);
+    --navbar-bg: rgba(33, 29, 26, 0.8); /* Dark warm brown navbar */
+    --navbar-text: var(--primary-text);
+    --navbar-scroll-bg: rgba(33, 29, 26, 0.95);
+    --navbar-scroll-border: rgba(255,152,0,0.15); /* Orange scroll border */
+    --btn-close-filter: invert(90%) sepia(10%) saturate(200%) hue-rotate(320deg) brightness(100%) contrast(90%);
+
+    /* tsParticles colors (Dark Mode - ORANGE THEME - These are already set) */
+    --ts-particle-color1: #FFA726;
+    --ts-particle-color2: #FFB74D;
+    --ts-particle-color3: #FFCA28;
+    --ts-link-color: #7d5e3c; /* Muted dark orange/brown for links */
+}
+
+body {
+    font-family: var(--font-primary);
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    padding-top: 70px;
+    overflow-x: hidden;
+}
+
+#tsparticles-bg {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+/* --- Typography & Links --- */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-text);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+.section-title {
+    font-size: clamp(2rem, 5vw, 2.5rem);
+    margin-bottom: 0.75rem;
+    position: relative;
+    display: inline-block;
+}
+.section-title::after { /* Updated to orange gradient */
+    content: '';
+    display: block;
+    width: 70px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-color-primary), var(--accent-color-secondary));
+    margin: 0.75rem auto 0;
+    border-radius: 3px;
+}
+
+a {
+    color: var(--accent-color-primary);
+    text-decoration: none;
+    transition: color 0.2s ease, opacity 0.2s ease;
+}
+a:hover {
+    color: var(--accent-color-secondary);
+    opacity: 0.85;
+}
+
+/* --- Buttons --- */
+.btn {
+    font-weight: 600;
+    padding: 0.85rem 1.75rem;
+    border-radius: 50px;
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    letter-spacing: 0.03em;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+.btn-primary.btn-gradient, .btn-gradient { /* Updated to orange gradient */
+    background: linear-gradient(90deg, var(--accent-color-primary) 0%, var(--accent-color-secondary) 100%);
+    background-size: 100% 100%;
+    border-color: transparent;
+    color: white; /* For good contrast with orange */
+    text-shadow: 0 1px 1px rgba(0,0,0,0.15); /* Optional: slight shadow for text pop on orange */
+    box-shadow: 0 4px 15px rgba(var(--accent-color-primary-rgb), 0.3); /* Orange shadow */
+}
+.btn-primary.btn-gradient:hover, .btn-gradient:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 7px 20px rgba(var(--accent-color-primary-rgb), 0.4); /* Darker orange shadow */
+    background-size: 150% 150%;
+    color: white;
+}
+
+/* --- Navbar --- */
+.navbar {
+    background-color: var(--navbar-bg);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, border-bottom-color 0.3s ease;
+    border-bottom: 1px solid transparent;
+}
+.navbar.scrolled {
+    background-color: var(--navbar-scroll-bg);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    border-bottom-color: var(--navbar-scroll-border);
+}
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: var(--accent-color-primary) !important; /* Orange brand */
+}
+.navbar-brand i {
+    color: var(--accent-color-primary) !important; /* Orange icon */
+    transition: transform 0.3s ease;
+}
+.navbar-brand:hover i {
+    transform: rotate(-15deg) scale(1.1);
+}
+.nav-link {
+    color: var(--navbar-text) !important;
+    font-weight: 500;
+    margin: 0 0.6rem;
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+.nav-link::after { /* Updated to orange underline */
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    background-color: var(--accent-color-primary);
+    transition: width 0.3s ease;
+}
+.nav-link:hover::after, .nav-link.active::after {
+    width: 70%;
+}
+.nav-link.active {
+    color: var(--accent-color-primary) !important; /* Orange active link */
+}
+
+.theme-toggle-btn {
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-color: var(--border-color);
+    background-color: transparent;
+    color: var(--secondary-text);
+}
+.theme-toggle-btn:hover { /* Orange hover */
+    border-color: var(--accent-color-primary);
+    color: var(--accent-color-primary);
+    background-color: rgba(var(--accent-color-primary-rgb), 0.08);
+    transform: rotate(15deg);
+}
+.theme-toggle-btn .icon-moon { display: none; }
+[data-bs-theme="dark"] .theme-toggle-btn .icon-moon { display: inline-block; }
+[data-bs-theme="dark"] .theme-toggle-btn .icon-sun { display: none; }
+
+
+/* --- Hero Section --- */
+#hero {
+    min-height: 90vh;
+    color: var(--primary-text);
+    padding: 7rem 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+/* [data-bs-theme="dark"] #hero: Color already handled by body */
+#hero h1 {
+    font-size: clamp(2.8rem, 7vw, 5rem);
+    text-shadow: 0 2px 20px rgba(var(--accent-color-primary-rgb),0.05); /* Orange tinted shadow */
+}
+#hero .ar-text { /* Updated to orange gradient */
+    background: linear-gradient(90deg, var(--accent-color-primary), var(--accent-color-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-family: var(--font-secondary);
+    font-weight: 700;
+    padding: 0 0.1em;
+}
+#hero p.lead {
+    font-size: clamp(1.1rem, 3vw, 1.35rem);
+    max-width: 750px;
+    margin-left: auto;
+    margin-right: auto;
+    color: var(--secondary-text);
+    line-height: 1.7;
+}
+
+/* Hero Outline Button Styling (Orange Theme) */
+:root #hero .btn-outline-light { /* Renaming class might be better, but for now override */
+    color: var(--accent-color-primary);
+    border-color: var(--accent-color-primary);
+    box-shadow: 0 0 0 0 rgba(var(--accent-color-primary-rgb), 0.7);
+}
+:root #hero .btn-outline-light:hover {
+    color: white;
+    background-color: var(--accent-color-primary);
+    border-color: var(--accent-color-primary);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 7px 20px rgba(var(--accent-color-primary-rgb), 0.3);
+}
+[data-bs-theme="dark"] #hero .btn-outline-light {
+    color: var(--accent-color-secondary); /* Brighter orange for dark mode outline */
+    border-color: var(--accent-color-secondary);
+}
+[data-bs-theme="dark"] #hero .btn-outline-light:hover {
+    color: var(--primary-bg); /* Dark text on hover */
+    background-color: var(--accent-color-secondary);
+    border-color: var(--accent-color-secondary);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 7px 20px rgba(var(--accent-color-secondary-rgb), 0.2);
+}
+
+
+/* --- Cards (Feature & Review) --- */
+.feature-card, .review-card {
+    background-color: var(--card-bg);
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    height: 100%;
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+.feature-card::before, .review-card::before { /* Orange gradient border on hover */
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--accent-color-primary), var(--accent-color-secondary));
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+.feature-card:hover, .review-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--card-hover-shadow);
+}
+.feature-card:hover::before, .review-card:hover::before {
+    opacity: 1;
+}
+
+.feature-card .feature-icon i { /* Orange gradient for icon */
+    font-size: 3rem;
+    background: linear-gradient(45deg, var(--accent-color-primary), var(--accent-color-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 0.5rem;
+}
+.feature-card h3 {
+    margin-top: 1.25rem;
+    color: var(--primary-text);
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+.feature-card p {
+    color: var(--secondary-text);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.review-card .review-quote i.bi-quote { /* Using tertiary orange for quote icon */
+    color: var(--accent-color-tertiary);
+    opacity: 0.5; /* More visible quote icon */
+}
+.review-card .review-author img { /* Orange border for avatar */
+    border: 2px solid var(--accent-color-tertiary);
+}
+/* Other review card styles remain similar */
+.review-card .review-quote {
+    position: relative;
+    padding-left: 3rem;
+    margin-bottom: 1.5rem;
+}
+.review-card .review-quote p {
+    font-style: italic;
+    color: var(--secondary-text);
+    margin-bottom: 0;
+    line-height: 1.7;
+}
+.review-card .review-author {
+    display: flex;
+    align-items: center;
+    margin-top: auto;
+    font-size: 0.9rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+.review-card .review-author strong {
+    color: var(--primary-text);
+    font-weight: 600;
+}
+
+
+/* --- Video Tutorial Section --- */
+#video-tutorial {
+    background-color: var(--secondary-bg);
+    padding-top: 6rem; padding-bottom: 6rem;
+}
+.video-wrapper {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(100,50,0,0.1); /* Orange tinted shadow */
+}
+[data-bs-theme="dark"] .video-wrapper {
+    box-shadow: 0 10px 40px rgba(var(--accent-color-primary-rgb),0.15); /* Orange shadow on dark */
+}
+
+/* --- Footer --- */
+footer {
+    background-color: var(--primary-bg);
+    border-top: 1px solid var(--border-color);
+    color: var(--secondary-text);
+    padding-top: 3rem; padding-bottom: 3rem;
+}
+footer a {
+    color: var(--secondary-text);
+    font-weight: 500;
+}
+footer a:hover {
+    color: var(--accent-color-primary); /* Orange hover */
+}
+
+/* --- Modal --- */
+.modal-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    box-shadow: 0 10px 50px rgba(100,50,0,0.1); /* Orange tinted shadow */
+}
+[data-bs-theme="dark"] .modal-content {
+    box-shadow: 0 10px 50px rgba(var(--accent-color-primary-rgb),0.1);
+}
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem;
+}
+.modal-header .btn-close {
+    filter: var(--btn-close-filter);
+}
+.modal-title {
+    color: var(--primary-text);
+    font-weight: 600;
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.form-label {
+    color: var(--secondary-text);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+.form-control {
+    background-color: var(--secondary-bg);
+    color: var(--primary-text);
+    border-color: var(--border-color);
+    padding: 0.85rem 1.25rem;
+    border-radius: 10px;
+}
+.form-control:focus { /* Orange focus */
+    background-color: var(--secondary-bg);
+    color: var(--primary-text);
+    border-color: var(--accent-color-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--accent-color-primary-rgb), 0.25);
+}
+[data-bs-theme="dark"] .form-control::placeholder {
+    color: var(--secondary-text);
+    opacity: 0.6;
+}
+
+/* --- Animation on Scroll --- */
+[data-animation] {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+[data-animation].is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+[data-animation="fadeInUp"] { transform: translateY(60px); }
+[data-animation="zoomIn"] { transform: scale(0.7); opacity: 0; }
+[data-animation="zoomIn"].is-visible { transform: scale(1); opacity: 1;}
+
+/* css/style.css */
+
+/* ... (all previous CSS) ... */
+
+.host-page-main {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+    flex-grow: 1;
+}
+
+.form-container {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+    position: relative; /* Needed for ::before pseudo-element */
+    /* Ensure it has a border-radius if you want the ::before to be rounded.
+       The .rounded-3 class from Bootstrap applied in HTML handles this. */
+}
+
+.form-container .display-1.text-gradient {
+    background: linear-gradient(90deg, var(--accent-color-primary), var(--accent-color-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.input-group .btn-outline-secondary {
+    border-color: var(--border-color);
+    color: var(--secondary-text);
+}
+.input-group .btn-outline-secondary:hover {
+    background-color: rgba(var(--accent-color-primary-rgb), 0.1);
+    color: var(--accent-color-primary);
+    border-color: var(--accent-color-primary);
+}
+
+/* Optional: Gradient border on hover for the form container */
+.form-container::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit; /* Inherits border-radius from .form-container (which gets it from .rounded-3) */
+    padding: 2px;
+    background: linear-gradient(135deg, var(--accent-color-primary), var(--accent-color-secondary));
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+.form-container:hover::before {
+    opacity: 1;
+}
+
+/*
+   REMOVE THIS EMPTY BLOCK if it exists:
+   .form-container.rounded-3 {
+   }
+*/
+
+/* ... (rest of your CSS) ... */
+
+/* css/style.css */
+
+/* ... (all your existing CSS) ... */
+
+/* === Session Page Specific Styles === */
+body.session-page-body {
+    /* Ensures that the layout below navbar takes full height */
+    padding-top: 56px; /* Adjust if your navbar height changes */
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
+    overflow: hidden; /* Prevent body scroll, canvas will handle its own if needed */
+}
+
+.session-main-content {
+    flex-grow: 1; /* Allows this main area to take up available space */
+    display: flex; /* Prepare for flex layout inside */
+    overflow: hidden; /* Important: Prevent main from overflowing */
+}
+
+.whiteboard-layout-container {
+    display: flex;
+    flex-direction: row; /* Toolbar on left, canvas on right */
+    width: 100%;
+    height: 100%; /* Take full height of session-main-content */
+}
+
+.toolbar-container {
+    min-width: 200px; /* Minimum width for toolbar */
+    max-width: 250px; /* Maximum width for toolbar */
+    background-color: var(--secondary-bg); /* Slightly different background for toolbar */
+    overflow-y: auto; /* Scroll if toolbar content is too long */
+    flex-shrink: 0; /* Prevent toolbar from shrinking */
+    transition: background-color 0.3s ease;
+}
+[data-bs-theme="dark"] .toolbar-container {
+    border-right-color: var(--border-color) !important; /* Ensure dark border */
+}
+
+.tool-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: space-around;
+}
+
+.btn-tool {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--secondary-text);
+    width: 45px; /* Square buttons */
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 0.375rem; /* Standard Bootstrap rounding */
+    transition: all 0.2s ease;
+}
+.btn-tool:hover {
+    background-color: rgba(var(--accent-color-primary-rgb), 0.1);
+    color: var(--accent-color-primary);
+    border-color: var(--accent-color-primary);
+}
+.btn-tool.active {
+    background-color: var(--accent-color-primary);
+    color: white;
+    border-color: var(--accent-color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--accent-color-primary-rgb), 0.3);
+}
+
+.tool-options .form-label-sm {
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+.tool-options .form-control-color {
+    min-height: 35px; /* Ensure color input is not too small */
+}
+
+.whiteboard-canvas-container {
+    background-color: var(--primary-bg); /* Or a specific canvas background color */
+    position: relative; /* For potential overlays or cursors */
+    display: flex; /* To center canvas if needed, or just let it fill */
+    align-items: center;
+    justify-content: center;
+    padding: 10px; /* Small padding around the canvas within its container */
+}
+
+#whiteboardCanvas {
+    /* JavaScript will set width and height, but we can set display properties */
+    display: block; /* Removes extra space below canvas */
+    background-color: #fff; /* Default white canvas background, can be transparent */
+    /* For light mode, add a subtle border so it's visible against primary-bg if same */
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    max-width: 100%; /* Ensure it doesn't overflow container */
+    max-height: 100%;
+    /* cursor: crosshair; Or set by JS based on active tool */
+}
+[data-bs-theme="dark"] #whiteboardCanvas {
+    background-color: #f0f0f0; /* Slightly off-white for dark mode canvas for contrast */
+    border-color: var(--border-color); /* Dark theme border */
+}
+
+/* Session Info in Navbar */
+#sessionInfoNavbar {
+    font-size: 0.9rem;
+    color: var(--navbar-text);
+}
+[data-bs-theme="dark"] #sessionInfoNavbar {
+    color: var(--navbar-text);
+}
+
+#leaveSessionBtn {
+    padding: 0.25rem 0.6rem; /* Smaller padding for navbar button */
+    font-size: 0.85rem;
+}
+
+/* Minimal footer if used */
+.session-footer {
+    background-color: var(--secondary-bg);
+    border-top: 1px solid var(--border-color);
+    z-index: 100; /* Ensure it's above canvas if fixed-bottom */
+}
+
+/* css/style.css */
+
+/* ... (all your existing CSS) ... */
+
+/* Generic padding for static content pages */
+.page-main-content {
+    padding-top: 3rem; /* Adjust as needed if navbar height changes */
+    padding-bottom: 3rem;
+    flex-grow: 1; /* For sticky footer if body is flex column */
+}
+
+/* About Page - Key Features Section */
+.feature-card-simple {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 15px; /* Consistent rounding */
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+    height: 100%; /* For equal height cards */
+}
+
+.feature-card-simple .icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Gradient background for the icon circle */
+    background: linear-gradient(135deg, var(--accent-color-primary), var(--accent-color-secondary));
+}
+
+/* About Page - Team Section (Optional) */
+.team-member-card {
+    background-color: var(--card-bg);
+    border-radius: 15px;
+    border: 1px solid var(--border-color);
+    /* No deep shadow for these, simpler look */
+}
+.team-member-card img {
+    border: 4px solid var(--secondary-bg); /* Border around avatar */
+}
+
+/* Ensure text-gradient class is available for headers/icons if needed */
+.text-gradient {
+    background: linear-gradient(90deg, var(--accent-color-primary), var(--accent-color-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Optional: Adjust bg-light-subtle if you want it to use your theme's secondary-bg */
+.bg-light-subtle {
+    background-color: var(--secondary-bg) !important; /* Use your theme's secondary bg */
+}
+
+/* css/style.css */
+
+/* ... (all your existing CSS) ... */
+
+/* Contact Page Specific Styles */
+.contact-info-card {
+    background-color: var(--secondary-bg); /* Use secondary background for contrast */
+    border: 1px solid var(--border-color);
+    /* It will inherit rounding from .rounded-3 in HTML */
+}
+
+.contact-details li {
+    font-size: 0.95rem;
+}
+.contact-details li i.bi { /* Icon styling */
+    width: 24px; /* Ensure consistent alignment */
+}
+
+.contact-details a {
+    color: var(--primary-text); /* Standard text color for links here */
+    font-weight: normal;
+}
+.contact-details a:hover {
+    color: var(--accent-color-primary);
+    text-decoration: underline;
+}
+[data-bs-theme="dark"] .contact-details a {
+    color: var(--primary-text);
+}
+[data-bs-theme="dark"] .contact-details a:hover {
+    color: var(--accent-color-secondary);
+}
+
+
+.social-icons .btn-social {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    padding: 0; /* Remove padding to center icon with flex */
+    display: inline-flex; /* Use flex to center icon */
+    align-items: center;
+    justify-content: center;
+    color: var(--secondary-text);
+    border-color: var(--border-color);
+    transition: all 0.2s ease-in-out;
+}
+.social-icons .btn-social:hover {
+    background-color: var(--accent-color-primary);
+    color: white;
+    border-color: var(--accent-color-primary);
+    transform: translateY(-2px);
+}
+/* If .form-container was specific to host.html, you might need to generalize it or copy its styles */
+/* The .form-container style from host.html should work fine here too. */
+
+/* css/style.css */
+
+/* ... (all your existing CSS) ... */
+
+/* Dashboard Page - Session Card Styles */
+.session-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 15px; /* Consistent with other cards */
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.session-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-hover-shadow);
+}
+
+.session-card .card-title {
+    color: var(--primary-text);
+    /* Ensure it uses the accent for links or primary text */
+}
+
+.session-card .card-subtitle,
+.session-card .card-text {
+    color: var(--secondary-text);
+}
+
+.session-card .btn-sm { /* Ensure small buttons in cards are legible */
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* No Sessions Message Styling */
+#noSessionsMessage i.bi-inbox {
+    font-size: 4rem !important; /* Larger inbox icon */
+    opacity: 0.5;
+}
