@@ -149,7 +149,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert("Please fill in Your Name and Session Name."); return;
             }
             
-            const newSessionId = `ARW-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+            const sanitizedHostName = hostNameInputVal.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10) || 'Host';
+            const randomSuffix = Math.random().toString(36).substring(2, 7);
+            const newSessionId = `${sanitizedHostName}-${randomSuffix}`;
             const sessionURL = `session.html?sessionId=${encodeURIComponent(newSessionId)}&sessionName=${encodeURIComponent(sessionNameInput)}&hostName=${encodeURIComponent(hostNameInput)}`;
             
             console.log(`New session created: ID=${newSessionId}, Name=${sessionNameInput}, Host=${hostNameInput}`);
