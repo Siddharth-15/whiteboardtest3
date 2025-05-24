@@ -142,19 +142,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hostSessionForm) {
         hostSessionForm.addEventListener('submit', function(event) {
             event.preventDefault();
-            const hostNameInput = document.getElementById('hostName')?.value.trim();
-            const sessionNameInput = document.getElementById('sessionName')?.value.trim();
+            const hostNameInputVal = document.getElementById('hostName')?.value.trim();
+            const sessionNameInputVal = document.getElementById('sessionName')?.value.trim();
             // const sessionPassword = document.getElementById('sessionPassword')?.value; // Keep for future use
-            if (!hostNameInput || !sessionNameInput) {
+            if (!hostNameInputVal || !sessionNameInputVal) {
                 alert("Please fill in Your Name and Session Name."); return;
             }
             
             const sanitizedHostName = hostNameInputVal.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10) || 'Host';
             const randomSuffix = Math.random().toString(36).substring(2, 7);
             const newSessionId = `${sanitizedHostName}-${randomSuffix}`;
-            const sessionURL = `session.html?sessionId=${encodeURIComponent(newSessionId)}&sessionName=${encodeURIComponent(sessionNameInput)}&hostName=${encodeURIComponent(hostNameInput)}`;
+            const sessionURL = `session.html?sessionId=${encodeURIComponent(newSessionId)}&sessionName=${encodeURIComponent(sessionNameInputVal)}&hostName=${encodeURIComponent(hostNameInputVal)}`;
             
-            console.log(`New session created: ID=${newSessionId}, Name=${sessionNameInput}, Host=${hostNameInput}`);
+            console.log(`New session created: ID=${newSessionId}, Name=${sessionNameInputVal}, Host=${hostNameInputVal}`);
             window.location.href = sessionURL;
         });
     }
