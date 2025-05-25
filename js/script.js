@@ -995,7 +995,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`[SESSION PAGE] Received draw_permission_requested_to_host from ${requesterName} (${requesterId})`);
             pendingPermissionRequests[requesterId] = true; 
             if (participantsList[requesterId]) participantsList[requesterId].hasRequestedDraw = true;
-        }else{
             participantsList[requesterId] = { name: requesterName, canDraw: false, isHost: false, hasRequestedDraw: true}; 
             updateParticipantListUI(); 
             // alert(`${requesterName} has requested drawing permission.`); // Can be annoying
