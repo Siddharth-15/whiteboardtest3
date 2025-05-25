@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let isCurrentUserHost = false;      
         let currentUserCanDraw = false;     
-        const participantsList = {}; 
+        let participantsList = {}; 
 
         const ctx = canvasElement.getContext('2d', { willReadFrequently: true });
         const activeSessionNameEl = document.getElementById('activeSessionName');
@@ -722,19 +722,39 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.strokeStyle = data.color; ctx.lineWidth = data.lineWidth; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
             switch (data.type) {
-                case 'draw_segment': /* ... as before ... */ break;
-                case 'draw_dot': /* ... as before ... */ break;
-                case 'draw_shape_line': /* ... as before ... */ break;
-                case 'draw_shape_rect': /* ... as before ... */ break;
-                case 'draw_shape_circle': /* ... as before ... */ break;
-                case 'clear_board': /* ... as before ... */ break;
+                case 'draw_segment':
+                    if (data.tool === 'pencil') { ctx.beginPath(); ctx.moveTo(data.startX, data.startY); ctx.lineTo(data.endX, data.endY); ctx.stroke(); }
+                    break;
+                case 'draw_dot':  
+                    if (data.tool === 'pencil_dot') { ctx.fillStyle = data.color; ctx.beginPath(); ctx.arc(data.x, data.y, data.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); }
+                    break;
+                case 'draw_shape_line':  
+                    ctx.beginPath(); ctx.moveTo(data.startX, data.startY); ctx.lineTo(data.endX, data.endY); ctx.stroke(); 
+                    break;
+                case 'draw_shape_rect': 
+                    ctx.beginPath(); ctx.strokeRect(data.startX, data.startY, data.endX - data.startX, data.endY - data.startY);
+                    break;
+                case 'draw_shape_circle': 
+                    ctx.beginPath(); ctx.arc(data.startX, data.startY, data.radius, 0, 2 * Math.PI); ctx.stroke(); 
+                    break;
+                case 'clear_board': 
+                    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                history = []; historyStep = -1; saveHistory(); updateUndoRedoButtons()
+                console.log("[SESSION PAGE] Board cleared by remote user:", data.userId);
+                break;
+                default:
+                    console.warn("[SESSION PAGE] Unknown drawing action type received:", data.type);
             }
             ctx.strokeStyle=oStroke; ctx.lineWidth=oWidth; ctx.fillStyle=oFill; ctx.lineCap=oCap; ctx.lineJoin=oJoin;
         }
 
         function handleCurrentParticipants(currentUsersArray) {
             console.log('[SESSION PAGE] Received current_participants event. Data:',JSON.parse(JSON.stringify(currentUsersArray)));
-            let participantsList = {}; 
+            // --- OR simply reassign if it was declared with let:
+            participantsList = {}; // This is fine if participantsList was declared with 'let' at the higher scope
+            isCurrentUserHost = false; // Reset before re-evaluating
+            currentUserCanDraw = false; // Reset before re-evaluating
+            
             currentUsersArray.forEach(user => {
                 participantsList[user.userId] = { 
                     name: user.userName, 
@@ -779,34 +799,53 @@ document.addEventListener('DOMContentLoaded', function() {
             updateParticipantListUI();
         }
 
-        function updateParticipantListUI() {
+            function updateParticipantListUI() {
             if (!participantListUl) return;
             console.log(`[SESSION PAGE] updateParticipantListUI called. isCurrentUserHost: ${isCurrentUserHost}. participantsList:`, JSON.parse(JSON.stringify(participantsList)));
             
-            participantListUl.innerHTML = ''; 
+            participantListUl.innerHTML = ''; // Clear the list before rebuilding
 
-            let actualHostDisplayName = hostNameFromURL; 
-            const hostEntry = Object.values(participantsList).find(details => details.isHost); // Find by property
-            let hostUserId = null;
-            if (hostEntry) {
-                actualHostDisplayName = hostEntry.name;
-                hostUserId = Object.keys(participantsList).find(id => participantsList[id] === hostEntry);
-            }
+            let identifiedHostName = hostNameFromURL; // Fallback to name from URL if no host is in the list yet
+            let identifiedHostId = null;
+            let hostIsYou = false;
+
+            // Iterate once to find the host details from the current participantsList
+           // for (const userId_iter in participantsList) {
+               // if (participantsList[userId_iter].isHost) {
+                  //  identifiedHostName = participantsList[userId_iter].name;
+                   // identifiedHostId = userId_iter;
+                   // if (identifiedHostId === localUserId) {
+                       // hostIsYou = true;
+                   // }
+                //    break; // Found the host
+               // }
+           // }
             
-            const hostLi = document.createElement('li');
+            // Display the Host information
+          //  const hostLi = document.createElement('li');
             hostLi.className = 'list-group-item bg-transparent px-1 py-1 d-flex justify-content-between align-items-center';
             const hostNameSpan = document.createElement('span');
             hostNameSpan.className = 'fw-bold';
-            hostNameSpan.textContent = `Host: ${actualHostDisplayName}`;
-            if (hostUserId && hostUserId === localUserId) { // If this client is the identified host
+            hostNameSpan.textContent = `Host: ${identifiedHostName}`;
+            if (hostIsYou) {
                 hostNameSpan.textContent += ' (You)';
+            }
+            // If the host can draw (which they always should by server logic), show pencil icon
+            if (identifiedHostId && participantsList[identifiedHostId] && participantsList[identifiedHostId].canDraw) {
+                const pencilIcon = document.createElement('i');
+                pencilIcon.className = 'bi bi-pencil-fill ms-2 text-success small';
+                pencilIcon.title = "Can draw";
+                hostNameSpan.appendChild(pencilIcon);
             }
             hostLi.appendChild(hostNameSpan);
             participantListUl.appendChild(hostLi);
 
+            // Now, display other (non-host) participants
             for (const userId in participantsList) {
                 const user = participantsList[userId];
-                if (user.isHost) continue; 
+                if (user.isHost) {
+                    continue; // Skip the host, already displayed
+                }
 
                 const li = document.createElement('li');
                 li.className = 'list-group-item bg-transparent px-1 py-1 d-flex justify-content-between align-items-center';
@@ -821,17 +860,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 li.appendChild(nameSpan);
 
-                if (isCurrentUserHost && !user.isHost) { // Only host sees buttons, and not for themselves
+                // Permission toggle button: Show if current user IS the host, AND this list item is NOT the host
+                if (isCurrentUserHost && !user.isHost) { 
                     const toggleBtn = document.createElement('button');
-                    console.log(`[SESSION PAGE] Creating permission button for ${user.name} (ID: ${userId}). Their current canDraw status: ${user.canDraw}`);
+                    // Log before creating button to see the state `user.canDraw` is using
+                    console.log(`[SESSION PAGE] Creating permission button for ${user.name} (ID: ${userId}). Their current canDraw status from participantsList: ${user.canDraw}`);
                     
                     toggleBtn.className = `btn btn-sm py-0 px-1 ${user.canDraw ? 'btn-outline-danger' : 'btn-outline-success'}`;
                     toggleBtn.innerHTML = user.canDraw ? '<i class="bi bi-slash-circle"></i> Revoke' : '<i class="bi bi-check-circle"></i> Allow';
                     toggleBtn.title = user.canDraw ? 'Revoke drawing permission' : 'Grant drawing permission';
                     toggleBtn.style.fontSize = '0.7rem';
                     toggleBtn.addEventListener('click', () => {
-                        if (!socket || !socket.connected) { console.error("Socket not connected"); return; }
-                        console.log(`[SESSION PAGE] Host emitting update_draw_permission for ${userId}. Setting canDraw to: ${!user.canDraw}`);
+                        if (!socket || !socket.connected) { console.error("Socket not connected for permission toggle"); return; }
+                        console.log(`[SESSION PAGE] Host (localUserId: ${localUserId}) emitting update_draw_permission for targetUserId: ${userId}. Setting canDraw to: ${!user.canDraw}`);
                         socket.emit('update_draw_permission', {
                             targetUserId: userId,
                             canDraw: !user.canDraw, 
@@ -892,6 +933,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Save session button: decide your logic (e.g., only host can save, or anyone if they can draw)
                 if(saveSessionBtnOnSessionPage) {
                     saveSessionBtnOnSessionPage.disabled = !isCurrentUserHost; // Example: only host can save
+                    console.log(`[SESSION PAGE] Save button. isCurrentUserHost: ${isCurrentUserHost}, button disabled: ${saveSessionBtnOnSessionPage.disabled}`);
                 }
             }
         }
