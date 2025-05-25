@@ -361,6 +361,8 @@ document.addEventListener('DOMContentLoaded', function() {
             socket.on('current_participants', handleCurrentParticipants); 
             socket.on('permission_updated', handlePermissionUpdated); 
 
+            console.log(`[SESSION PAGE] Initializing. MyName: ${myNameInSession}, HostName from URL: ${hostNameFromURL}, JoinerName from URL: ${joinerNameFromURL}`);
+
             if (currentSessionIdFromURL && !joinerNameFromURL) {
                 loadSessionById(currentSessionIdFromURL); 
             } else { 
@@ -596,7 +598,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     color: currentLocalColor, lineWidth: currentLocalLineWidth,
                     sessionId: currentSessionIdFromURL, userId: localUserId
                 };
-                if (socket && socket.connected) socket.emit('drawing_action', dotData);
+                if (socket && socket.connected) {
+                      console.log("[SESSION PAGE] Emitting draw_dot:", JSON.parse(JSON.stringify(dotData))); 
+                    socket.emit('drawing_action', dotData);
+                }
             } else if (['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
                 try { localSnapshot = ctx.getImageData(0, 0, canvasElement.width, canvasElement.height); }
                 catch (e) { console.error("Snapshot failed:", e); localSnapshot = null; }
@@ -633,7 +638,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     color: currentLocalColor, lineWidth: currentLocalLineWidth,
                     sessionId: currentSessionIdFromURL, userId: localUserId
                 };
-                if (socket && socket.connected) socket.emit('drawing_action', segmentData);
+                if (socket && socket.connected){
+                      console.log("[SESSION PAGE] Emitting draw_segment:", JSON.parse(JSON.stringify(segmentData)));
+                    socket.emit('drawing_action', segmentData);
+                }
                 lastEmitX = coords.x; lastEmitY = coords.y;
             } else if (currentLocalTool === 'tool-eraser' && (isDrawingForEmit || (event.buttons && event.buttons === 1))) {
                 // Server-side check will prevent emitting if !currentUserCanDraw
@@ -688,6 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Don't emit eraser for now, as it's only local
                     if (socket && socket.connected && currentLocalTool !== 'tool-eraser') {
+                         console.log("[SESSION PAGE] Emitting shape action:", JSON.parse(JSON.stringify(actionData)));
                          socket.emit('drawing_action', actionData);
                     }
                 }
@@ -706,7 +715,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function handleDrawingActionBroadcast(data) {
-            if (!ctx || data.userId === localUserId) return; 
+            if (!ctx || data.userId === localUserId) return;
+              console.log('[SESSION PAGE] Received drawing_action_broadcast. Data:', JSON.parse(JSON.stringify(data)), 'My localUserId:', localUserId);
 
             const oStroke = ctx.strokeStyle, oWidth = ctx.lineWidth, oFill = ctx.fillStyle, oCap = ctx.lineCap, oJoin = ctx.lineJoin;
             ctx.strokeStyle = data.color; ctx.lineWidth = data.lineWidth; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -723,7 +733,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function handleCurrentParticipants(currentUsersArray) {
-            console.log('[SESSION PAGE] Received current participants:', currentUsersArray);
+            console.log('[SESSION PAGE] Received current_participants event. Data:',JSON.parse(JSON.stringify(currentUsersArray)));
             let participantsList = {}; 
             currentUsersArray.forEach(user => {
                 participantsList[user.userId] = { 
@@ -734,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (user.userId === localUserId) {
                     isCurrentUserHost = user.isHost;
                     currentUserCanDraw = user.canDraw;
-                    console.log(`[SESSION PAGE] My status: Host=${isCurrentUserHost}, CanDraw=${currentUserCanDraw}`);
+                     console.log(`[SESSION PAGE] My status set from current_participants: localUserId=${localUserId}, isCurrentUserHost=${isCurrentUserHost}, currentUserCanDraw=${currentUserCanDraw}, myNameInSession=${myNameInSession}`);
                 }
                 if (user.isHost && activeHostNameEl) { 
                     activeHostNameEl.textContent = user.userName;
@@ -743,10 +753,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             updateParticipantListUI();
             updateDrawingToolsAccess();
+            console.log('[SESSION PAGE] handleCurrentParticipants finished. Updated participantsList:', JSON.parse(JSON.stringify(participantsList))); // Log final state
         }
 
         function handleUserJoined(userData) {
-            console.log('[SESSION PAGE] User joined event:', userData);
+             console.log('[SESSION PAGE] Received user_joined event. Data:', JSON.parse(JSON.stringify(userData)));
             participantsList[userData.userId] = { 
                 name: userData.userName, 
                 canDraw: userData.canDraw, 
@@ -757,6 +768,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  if(hostParticipantEl) hostParticipantEl.textContent = `Host: ${userData.userName}`;
             }
             updateParticipantListUI();
+            console.log('[SESSION PAGE] handleUserJoined finished for', userData.userId, '. Updated participantsList:', JSON.parse(JSON.stringify(participantsList))); // Log final state
         }
         
         function handleUserLeft(data) { 
@@ -769,6 +781,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function updateParticipantListUI() {
             if (!participantListUl) return;
+            console.log(`[SESSION PAGE] updateParticipantListUI called. isCurrentUserHost: ${isCurrentUserHost}. participantsList:`, JSON.parse(JSON.stringify(participantsList)));
+            
             participantListUl.innerHTML = ''; 
 
             let actualHostDisplayName = hostNameFromURL; 
@@ -809,12 +823,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (isCurrentUserHost && !user.isHost) { // Only host sees buttons, and not for themselves
                     const toggleBtn = document.createElement('button');
+                    console.log(`[SESSION PAGE] Creating permission button for ${user.name} (ID: ${userId}). Their current canDraw status: ${user.canDraw}`);
+                    
                     toggleBtn.className = `btn btn-sm py-0 px-1 ${user.canDraw ? 'btn-outline-danger' : 'btn-outline-success'}`;
                     toggleBtn.innerHTML = user.canDraw ? '<i class="bi bi-slash-circle"></i> Revoke' : '<i class="bi bi-check-circle"></i> Allow';
                     toggleBtn.title = user.canDraw ? 'Revoke drawing permission' : 'Grant drawing permission';
                     toggleBtn.style.fontSize = '0.7rem';
                     toggleBtn.addEventListener('click', () => {
                         if (!socket || !socket.connected) { console.error("Socket not connected"); return; }
+                        console.log(`[SESSION PAGE] Host emitting update_draw_permission for ${userId}. Setting canDraw to: ${!user.canDraw}`);
                         socket.emit('update_draw_permission', {
                             targetUserId: userId,
                             canDraw: !user.canDraw, 
@@ -828,10 +845,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function handlePermissionUpdated(data) { // data: { userId, userName, canDraw, isHost, updatedByHostId }
-            console.log('[SESSION PAGE] Permission updated event:', data);
+           console.log('[SESSION PAGE] Received permission_updated event. Data:', JSON.parse(JSON.stringify(data))); // Log incoming data
             if (participantsList[data.userId]) {
+               console.log(`[SESSION PAGE] Permission for ${data.userId} (${participantsList[data.userId].name}) BEFORE update: canDraw = ${participantsList[data.userId].canDraw}`);
                 participantsList[data.userId].canDraw = data.canDraw;
-                // isHost status of a participant should not change via this event, only drawing permission
+                 // isHost status of a participant should not change via this event, only drawing permission
+                 console.log(`[SESSION PAGE] Permission for ${data.userId} (${participantsList[data.userId].name}) AFTER update: canDraw = ${participantsList[data.userId].canDraw}`);
+            } else {
+                console.warn(`[SESSION PAGE] Received permission_updated for unknown user: ${data.userId}, full participantsList:`, JSON.parse(JSON.stringify(participantsList)));
+               
             }
             if (data.userId === localUserId) { // If this client's permission was changed
                 currentUserCanDraw = data.canDraw;
@@ -839,9 +861,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateDrawingToolsAccess();
             }
             updateParticipantListUI(); 
+             console.log('[SESSION PAGE] handlePermissionUpdated finished. Updated participantsList:', JSON.parse(JSON.stringify(participantsList)));
         }
 
         function updateDrawingToolsAccess() {
+             console.log("[SESSION PAGE] Rebuilding participant list. Current Host:", isCurrentUserHost, "Full list:", JSON.parse(JSON.stringify(participantsList))); // Log full list state
             const UIElementsToToggle = [ 
                 colorPicker, lineWidthRange, 
                 undoBtn, redoBtn, clearBoardBtn, // Also toggle clearBoardBtn based on draw permission
@@ -877,6 +901,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Permission check for clearing: either current user can draw OR is the host
             if (!currentUserCanDraw && !isCurrentUserHost) {
                 alert("You don't have permission to clear the board.");
+                console.log("[SESSION PAGE] Clear board denied. currentUserCanDraw:", currentUserCanDraw, "isCurrentUserHost:", isCurrentUserHost);
                 return;
             }
             if (confirm("Are you sure you want to clear the entire board for everyone? This cannot be undone.")) {
