@@ -724,7 +724,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function handleCurrentParticipants(currentUsersArray) {
             console.log('[SESSION PAGE] Received current participants:', currentUsersArray);
-            participantsList = {}; 
+            let participantsList = {}; 
             currentUsersArray.forEach(user => {
                 participantsList[user.userId] = { 
                     name: user.userName, 
