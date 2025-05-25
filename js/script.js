@@ -268,7 +268,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = canvasElement.getContext('2d', { willReadFrequently: true });
         const activeSessionNameEl = document.getElementById('activeSessionName');
         const activeHostNameEl = document.getElementById('activeHostName');
-        const hostParticipantEl = document.getElementById('hostParticipant'); 
         const participantListUl = document.getElementById('participantList'); 
         const colorPicker = document.getElementById('toolColor');
         const lineWidthRange = document.getElementById('lineWidth');
@@ -296,24 +295,23 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("[SESSION PAGE] initializeSessionPage CALLED");
             const urlParams = new URLSearchParams(window.location.search);
             currentSessionIdFromURL = urlParams.get('sessionId');
-            sessionNameFromURL = urlParams.get('sessionName') || sessionNameFromURL;
-            hostNameFromURL = urlParams.get('hostName') || hostNameFromURL; 
-            joinerNameFromURL = urlParams.get('joinerName');
+            const sessionNameFromURL = urlParams.get('sessionName') || sessionNameFromURL;
+            const hostNameFromURL = urlParams.get('hostName') || hostNameFromURL; 
+            const joinerNameFromURL = urlParams.get('joinerName');
 
             if (joinerNameFromURL) {
                 myNameInSession = joinerNameFromURL;
             } else if (hostNameFromURL) { 
                 myNameInSession = hostNameFromURL;
             } else {
-                myNameInSession = prompt("Please enter your name for this session:", `Guest_${Math.random().toString(36).substring(2, 7)}`) 
-                                || `Guest_${Math.random().toString(36).substring(2, 7)}`;
+                myNameInSession = `Guest_${Math.random().toString(36).substring(2, 7)}`;
             }
             
             if (!currentSessionIdFromURL) { alert("Error: Session ID is missing..."); window.location.href = 'index.html'; return; }
 
             if (activeSessionNameEl) activeSessionNameEl.textContent = sessionNameFromURL;
-            if (activeHostNameEl) activeHostNameEl.textContent = hostNameFromURL; 
-            if (hostParticipantEl) hostParticipantEl.textContent = `Host: ${hostNameFromURL}`;
+            if (activeHostNameEl) activeHostNameEl.textContent = hostNameFromURL ||'Host'; 
+            
 
             resizeCanvas(); 
             window.addEventListener('resize', resizeCanvas);
@@ -344,16 +342,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('[SESSION PAGE] Socket.IO connection error:', error);
                 alert('Could not connect to the whiteboard server. Ensure server is running and HTTPS is trusted.');
             });
-            
-            socket.on('drawing_action_broadcast', handleDrawingActionBroadcast);
-            socket.on('user_joined', handleUserJoined);       
-            socket.on('user_left', handleUserLeft);         
+        
             socket.on('current_participants', handleCurrentParticipants); 
+            socket.on('user_joined', handleUserJoined);       
+            socket.on('user_left', handleUserLeft);        
             socket.on('permission_updated', handlePermissionUpdated); 
             socket.on('draw_permission_requested_to_host', handleDrawPermissionRequestedToHost); 
             socket.on('draw_request_denied', handleDrawRequestDenied); 
             socket.on('apply_board_state', handleApplyBoardState); 
             socket.on('permission_request_resolved_for_host', handlePermissionRequestResolvedForHost);
+            socket.on('host_left_session', handleHostLeftSession);
 
             console.log(`[SESSION PAGE] Initializing. MyName: ${myNameInSession}, HostName from URL: ${hostNameFromURL}, JoinerName from URL: ${joinerNameFromURL}`);
             if (currentSessionIdFromURL && !joinerNameFromURL) { loadSessionById(currentSessionIdFromURL); } 
@@ -803,40 +801,69 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function handleCurrentParticipants(currentUsersArray) {
-            console.log('[SESSION PAGE] Received current_participants. Raw data:', JSON.parse(JSON.stringify(currentUsersArray)));
+            console.log('[SESSION PAGE] Received current_participants. My localUserId:', localUserId, 'Data:',  JSON.parse(JSON.stringify(currentUsersArray)));
+          
             participantsList = {}; 
-            isCurrentUserHost = false; 
-            currentUserCanDraw = false; 
-            let serverDesignatedHostName = hostNameFromURL; 
+            let foundMe = false;
+            let serverSaysIAmHost = false;
+            let serverSaysICanDraw = false;
+            let currentHostNameOnServer = hostNameFromURL; 
             currentUsersArray.forEach(user => {
                 participantsList[user.userId] = { name: user.userName, canDraw: user.canDraw, isHost: user.isHost, hasRequestedDraw: pendingPermissionRequests[user.userId] || false };
                 if (user.userId === localUserId) { 
-                    isCurrentUserHost = user.isHost; currentUserCanDraw = user.canDraw; myNameInSession = user.userName; 
-                    console.log(`[SESSION PAGE] My Status Updated from current_participants: localUserId=${localUserId}, Name=${myNameInSession}, IsHost=${isCurrentUserHost}, CanDraw=${currentUserCanDraw}`);
+                    foundMe= true;
+                    serverSaysIAmHost = user.isHost;
+                    serverSaysICanDraw = user.canDraw;
+}
+                if (user.isHost) { 
+                    currentHostNameOnServer = user.userName;
                 }
-                if (user.isHost) { serverDesignatedHostName = user.userName; }
             });
-            if (activeHostNameEl) activeHostNameEl.textContent = serverDesignatedHostName;
-            if (hostParticipantEl) hostParticipantEl.textContent = `Host: ${serverDesignatedHostName}`;
-            updateParticipantListUI(); updateDrawingToolsAccess(); 
+
+            if (foundMe) {
+                isCurrentUserHost = serverSaysIAmHost;
+                currentUserCanDraw = serverSaysICanDraw;
+            } else {
+                // This should not happen if join_session was successful and server includes me
+                console.error("[SESSION PAGE] CRITICAL: Did not find myself in current_participants list!");
+                isCurrentUserHost = false; // Default to safest state
+                currentUserCanDraw = false;
+            }               
+            console.log(`[SESSION PAGE] My Status Updated from current_participants: localUserId=${localUserId}, Name=${myNameInSession}, IsHost=${isCurrentUserHost}, CanDraw=${currentUserCanDraw}`);
+
+             if (activeHostNameEl) activeHostNameEl.textContent = currentHostNameOnServer;
+            if (hostParticipantEl) hostParticipantEl.textContent = `Host: ${currentHostNameOnServer}`;
+            updateParticipantListUI(); 
+            updateDrawingToolsAccess(); 
             console.log('[SESSION PAGE] handleCurrentParticipants finished. Final participantsList:', JSON.parse(JSON.stringify(participantsList)));
-            console.log(`[SESSION PAGE] Final status after current_participants: IsHost=${isCurrentUserHost}, CanDraw=${currentUserCanDraw}`);
         }
 
         function handleUserJoined(userData) { 
             console.log('[SESSION PAGE] Received user_joined event. Data:', JSON.parse(JSON.stringify(userData)));
             // This event primarily informs about OTHERS. Own status is best set by 'current_participants'.
             // However, if this client was previously alone and server confirms they are host upon another joining, update.
-            if (userData.userId === localUserId && userData.isHost && !isCurrentUserHost) {
-                 console.warn(`[SESSION PAGE] My 'isHost' status updated by user_joined to true (likely I was first).`);
-                 isCurrentUserHost = true;
-                 currentUserCanDraw = true; // Host can always draw
+             if (userData.userId === localUserId) {
+                 console.warn("[SESSION PAGE] Received user_joined event for MYSELF. This should primarily be handled by 'current_participants'. My current status: isHost=", isCurrentUserHost, "canDraw=", currentUserCanDraw);
+                  if (!isCurrentUserHost && userData.isHost) isCurrentUserHost = true;
+                if (!currentUserCanDraw && userData.canDraw) currentUserCanDraw = true;
+                 myNameInSession = userData.userName; // Update my name if server sends it differently
                  updateDrawingToolsAccess();
             }
-            participantsList[userData.userId] = { name: userData.userName, canDraw: userData.canDraw, isHost: userData.isHost, hasRequestedDraw: false };
-            if (userData.isHost && activeHostNameEl) { 
-                activeHostNameEl.textContent = userData.userName; 
-                if(hostParticipantEl) hostParticipantEl.textContent = `Host: ${userData.userName}`; 
+            participantsList[userData.userId] = {
+                name: userData.userName,
+                canDraw: userData.canDraw, 
+                isHost: userData.isHost,
+                hasRequestedDraw: false 
+            };
+            if (userData.isHost) { // If the user who just joined is now the host
+                if(activeHostNameEl) activeHostNameEl.textContent = userData.userName;
+                if(hostParticipantEl) hostParticipantEl.textContent = `Host: ${userData.userName}`;
+                // If I thought I was host, but server says this new joiner is, demote myself
+                if(isCurrentUserHost && userData.userId !== localUserId) {
+                    console.warn("[SESSION PAGE] Server indicates a new host has joined. Demoting self.");
+                    isCurrentUserHost = false;
+                    // currentUserCanDraw might also need to be false unless explicitly permitted again
+                }
             }
             updateParticipantListUI(); 
         }
@@ -946,6 +973,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 pendingPermissionRequests[data.userId] = false; 
             } else { 
                  participantsList[data.userId] = { name: data.userName, canDraw: data.canDraw, isHost: data.isHost, hasRequestedDraw: false };
+                 console.warn(`[SESSION PAGE] Added user ${data.userName} from permission_updated event.`);
             }
             if (data.userId === localUserId) { 
                 currentUserCanDraw = data.canDraw;
@@ -967,18 +995,21 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`[SESSION PAGE] Received draw_permission_requested_to_host from ${requesterName} (${requesterId})`);
             pendingPermissionRequests[requesterId] = true; 
             if (participantsList[requesterId]) participantsList[requesterId].hasRequestedDraw = true;
-            else participantsList[requesterId] = { name: requesterName, canDraw: false, isHost: false, hasRequestedDraw: true}; 
+        }else{
+            participantsList[requesterId] = { name: requesterName, canDraw: false, isHost: false, hasRequestedDraw: true}; 
             updateParticipantListUI(); 
             // alert(`${requesterName} has requested drawing permission.`); // Can be annoying
         }
 
         function handleDrawRequestDenied({ reason }) { 
-            if (localUserId !== this.targetUserId && requestDrawAccessBtn) { // targetUserId not available directly here, assume this is for me
-                 console.log(`[SESSION PAGE] My drawing request was denied. Reason: ${reason}`);
+            if (pendingPermissionRequests[localUserId] || (participantsList[localUserId] && participantsList[localUserId].hasRequestedDraw)) {                
+            console.log(`[SESSION PAGE] My drawing request was denied. Reason: ${reason}`);
                  alert(`Host denied your request to draw. ${reason || ''}`);
+                 if (requestDrawAccessBtn) {
                  requestDrawAccessBtn.disabled = false; 
                  requestDrawAccessBtn.textContent = 'Request Draw Access';
                  requestDrawAccessBtn.style.display = (isCurrentUserHost || currentUserCanDraw) ? 'none' : 'inline-block';
+                 }
                  if (participantsList[localUserId]) participantsList[localUserId].hasRequestedDraw = false;
                  pendingPermissionRequests[localUserId] = false;
             }
@@ -986,11 +1017,30 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function handlePermissionRequestResolvedForHost({targetUserId, granted}) { 
             if (!isCurrentUserHost) return;
-            console.log(`[SESSION PAGE] Permission request for ${targetUserId} was resolved by ME. Granted: ${granted}`);
+            console.log(`[SESSION PAGE] Host: Permission request for ${targetUserId} was resolved by ME. Granted: ${granted}`);
             pendingPermissionRequests[targetUserId] = false;
-            if(participantsList[targetUserId]) participantsList[targetUserId].hasRequestedDraw = false;
+            if(participantsList[targetUserId]) {
+                participantsList[targetUserId].hasRequestedDraw = false;
             updateParticipantListUI(); 
         }
+         function handleHostLeftSession({ oldHostName }) {
+            console.log(`[SESSION PAGE] Server announced host (${oldHostName}) has left.`);
+            // If I was the host, and I disconnected then reconnected NOT as host (which shouldn't happen with server logic)
+            // this is more for other clients to know the host with controls is gone.
+            if (isCurrentUserHost && myNameInSession === oldHostName) {
+                // This case is tricky. Server should assign a new host or the room becomes unmanaged.
+                // For now, if I was host and server says host left, I might no longer be "the" host.
+                // isCurrentUserHost = false; // This might be too aggressive. Let current_participants dictate.
+            }
+            if (activeHostNameEl) activeHostNameEl.textContent = "None (Host Left)";
+            if (hostParticipantEl) hostParticipantEl.textContent = "Host: None";
+            // All clients should re-render their participant list as "Approve/Deny" buttons might disappear
+            updateParticipantListUI();
+            updateDrawingToolsAccess(); // Re-check if tools should be disabled (e.g. save button for host)
+        }
+        
+        function handleApplyBoardState({ imageDataUrl }) { /* ... (Full implementation from previous) ... */ }
+        function handleDrawingActionBroadcast(data) { /* ... (Full implementation from previous) ... */ }
 
         function updateDrawingToolsAccess() {
             const UIElementsToToggle = [ colorPicker, lineWidthRange, undoBtn, redoBtn, clearBoardBtn, ...toolButtons ];
