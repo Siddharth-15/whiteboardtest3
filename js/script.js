@@ -754,6 +754,8 @@ document.addEventListener('DOMContentLoaded', function() {
             participantsList = {}; // This is fine if participantsList was declared with 'let' at the higher scope
             isCurrentUserHost = false; // Reset before re-evaluating
             currentUserCanDraw = false; // Reset before re-evaluating
+
+             let serverDesignatedHostName = hostNameFromURL;
             
             currentUsersArray.forEach(user => {
                 participantsList[user.userId] = { 
@@ -764,20 +766,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (user.userId === localUserId) {
                     isCurrentUserHost = user.isHost;
                     currentUserCanDraw = user.canDraw;
-                     console.log(`[SESSION PAGE] My status set from current_participants: localUserId=${localUserId}, isCurrentUserHost=${isCurrentUserHost}, currentUserCanDraw=${currentUserCanDraw}, myNameInSession=${myNameInSession}`);
+                    myNameInSession = user.userName;
+                    console.log(`[SESSION PAGE] My status set from current_participants: localUserId=${localUserId}, isCurrentUserHost=${isCurrentUserHost}, currentUserCanDraw=${currentUserCanDraw}, myNameInSession=${myNameInSession}`);
                 }
-                if (user.isHost && activeHostNameEl) { 
-                    activeHostNameEl.textContent = user.userName;
-                    if(hostParticipantEl) hostParticipantEl.textContent = `Host: ${user.userName}`;
+                if (user.isHost) { // If this user from server list is the host
+                    serverDesignatedHostName = user.userName; // Update the display name for the host
                 }
             });
+
+            // Update navbar display for host name based on server data
+            if (activeHostNameEl) activeHostNameEl.textContent = serverDesignatedHostName;
+            if (hostParticipantEl) hostParticipantEl.textContent = `Host: ${serverDesignatedHostName}`;
+           
             updateParticipantListUI();
             updateDrawingToolsAccess();
-            console.log('[SESSION PAGE] handleCurrentParticipants finished. Updated participantsList:', JSON.parse(JSON.stringify(participantsList))); // Log final state
+           console.log('[SESSION PAGE] handleCurrentParticipants finished. Final participantsList:', JSON.parse(JSON.stringify(participantsList)));
+           console.log(`[SESSION PAGE] Final status after current_participants: IsHost=${isCurrentUserHost}, CanDraw=${currentUserCanDraw}`);
         }
 
         function handleUserJoined(userData) {
              console.log('[SESSION PAGE] Received user_joined event. Data:', JSON.parse(JSON.stringify(userData)));
+              if (userData.userId === localUserId) {
+                // This client just (re)joined and server is confirming via user_joined
+                // This typically shouldn't be the primary way to set own status, current_participants is better.
+                // However, let's update if this message is about me.
+                console.warn(`[SESSION PAGE] Received 'user_joined' for myself. Updating my status.`);
+                isCurrentUserHost = userData.isHost;
+                currentUserCanDraw = userData.canDraw;
+                myNameInSession = userData.userName;
+                updateDrawingToolsAccess(); // Update my tools if my status changed
+            }
             participantsList[userData.userId] = { 
                 name: userData.userName, 
                 canDraw: userData.canDraw, 
