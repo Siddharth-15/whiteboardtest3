@@ -1,9 +1,7 @@
-// server.js - CORRECTED VERSION FOR RENDER.COM (HTTP ONLY)
+// server.js - UPDATED & INTEGRATED WITH PERMISSIONS - FOR RENDER.COM (HTTP ONLY)
 
 const express = require('express');
 const http = require('http'); // Use Node.js's built-in http module
-// const fs = require('fs'); // Not needed for certificates anymore
-// const path = require('path'); // Not needed for certificates anymore
 const socketIo = require('socket.io');
 const cors = require('cors');
 
@@ -22,95 +20,150 @@ const io = socketIo(server, {
 app.use(cors());
 
 app.get('/', (req, res) => {
-    res.send('AR Whiteboard Server is running (on Render via HTTP)!'); // Updated message
+    res.send('AR Whiteboard Server is running (on Render via HTTP with Permissions)!'); // Updated message
 });
 
 // Store active rooms/sessions and users in them
-const rooms = {}; // Your existing rooms object - ensure this matches your latest logic
+// New structure: { sessionId: { users: { socketId: { name: 'userName', canDraw: boolean, isHost: boolean } }, hostId: 'socketIdOfHost' } }
+const rooms = {}; 
 
 io.on('connection', (socket) => {
     console.log(`A user connected: ${socket.id}`);
     let currentSessionId = null; 
     let currentUserName = null; 
 
-    socket.on('join_session', (sessionId, userName) => { // Make sure this matches your client-side emit
+    socket.on('join_session', (sessionId, userName) => { // Client sends sessionId and their chosen userName
         socket.join(sessionId);
         currentSessionId = sessionId;
         currentUserName = userName || `User_${socket.id.substring(0,5)}`;
-        console.log(`User ${socket.id} (Name: ${currentUserName}) joined session: ${sessionId}`);
 
+        let isHost = false;
         if (!rooms[sessionId]) {
-            // Ensure your rooms structure here matches what drawing_action and disconnect expect
-            // For example, if you used rooms[sessionId] = { users: {} } previously:
-             rooms[sessionId] = { users: {} }; // Or an array if that's what you had: rooms[sessionId] = [];
-        }
-        // Adjust this based on your rooms structure:
-        if (rooms[sessionId].users) { // If using the { users: {} } structure
-            rooms[sessionId].users[socket.id] = currentUserName;
-        } else if (Array.isArray(rooms[sessionId])) { // If using an array of socket IDs
-            if (!rooms[sessionId].includes(socket.id)) {
-                rooms[sessionId].push(socket.id); // You'll need to adjust how userName is handled
-            }
+            // This is the first user in this session, they become the host
+            rooms[sessionId] = { 
+                users: {}, 
+                hostId: socket.id // Store the host's socket ID
+            };
+            isHost = true;
         }
 
+        // Add/update user in the room with their details
+        rooms[sessionId].users[socket.id] = {
+            name: currentUserName,
+            canDraw: isHost, // Host can draw by default, others cannot initially
+            isHost: isHost
+        };
 
-        // Emit with userName
-        socket.to(sessionId).emit('user_joined', { 
-            userId: socket.id, 
-            userName: currentUserName, // Send userName
-            sessionId: sessionId 
-        });
+        console.log(`User ${socket.id} (Name: ${currentUserName}, Host: ${isHost}, CanDraw: ${rooms[sessionId].users[socket.id].canDraw}) joined session: ${sessionId}`);
 
-        // Send current participants - ensure this logic is correct for your rooms structure
-        if (rooms[sessionId].users) {
-            socket.emit('current_participants', Object.entries(rooms[sessionId].users).map(([id, name]) => ({userId: id, userName: name})));
-        }
+        // Notify OTHERS in the room about this new user (with their permissions)
+        const joinedUserDetails = {
+            userId: socket.id,
+            userName: currentUserName,
+            canDraw: rooms[sessionId].users[socket.id].canDraw,
+            isHost: isHost,
+            sessionId: sessionId // Though not strictly needed for this event type
+        };
+        socket.to(sessionId).emit('user_joined', joinedUserDetails);
+
+        // Send the CURRENT list of ALL participants (with permissions) to the NEWLY JOINED user
+        const participantsArray = Object.entries(rooms[sessionId].users).map(([id, details]) => ({
+            userId: id,
+            userName: details.name,
+            canDraw: details.canDraw,
+            isHost: details.isHost // Client needs to know who the host is
+        }));
+        socket.emit('current_participants', participantsArray);
         
-        console.log(`Current users in session ${sessionId}:`, rooms[sessionId].users || rooms[sessionId]);
+        console.log(`Current users in session ${sessionId}:`, rooms[sessionId].users);
     });
 
-    // Your drawing_action needs to be the one that works with your current client
     socket.on('drawing_action', (data) => {
-        // Ensure data.userId exists and rooms[data.sessionId].users[socket.id] is valid if using that check
-        if (data.sessionId && data.userId && rooms[data.sessionId] /* && rooms[data.sessionId].users && rooms[data.sessionId].users[socket.id] */ ) {
-            socket.to(data.sessionId).emit('drawing_action_broadcast', data);
+        if (data.sessionId && data.userId && rooms[data.sessionId] && rooms[data.sessionId].users[socket.id]) {
+            // SERVER-SIDE PERMISSION CHECK: Only broadcast if sender has permission
+            if (rooms[data.sessionId].users[socket.id].canDraw) {
+                socket.to(data.sessionId).emit('drawing_action_broadcast', data);
+                // console.log(`Drawing action from ${data.userId} in ${data.sessionId} broadcasted.`);
+            } else {
+                console.warn(`User ${socket.id} (Name: ${rooms[data.sessionId].users[socket.id].name}) tried to draw without permission in session ${data.sessionId}.`);
+                // Optionally, send a message back to this user: 
+                // socket.emit('action_denied', { action: 'draw', reason: 'You do not have permission to draw.'});
+            }
         } else {
-            console.warn('Drawing action denied or bad data:', data);
+            console.warn('Received drawing_action with invalid session/user data, or user not in room state:', data);
+        }
+    });
+
+    // New event handler for the host to update drawing permissions
+    socket.on('update_draw_permission', ({ targetUserId, canDraw, sessionId }) => {
+        // Validate session and that the requester is the host
+        if (currentSessionId === sessionId && 
+            rooms[sessionId] && 
+            rooms[sessionId].hostId === socket.id) { 
+            
+            if (rooms[sessionId].users[targetUserId]) {
+                // Don't allow revoking host's own permission via this event (host always can draw)
+                if (targetUserId === rooms[sessionId].hostId && !canDraw) {
+                    console.warn(`Host ${socket.id} attempted to revoke their own drawing permission. Denied.`);
+                    // Optionally, send feedback to host: socket.emit('action_denied', {action: 'revoke_self', reason: 'Host cannot revoke own permission.'})
+                    return;
+                }
+
+                rooms[sessionId].users[targetUserId].canDraw = canDraw;
+                console.log(`Permission update for ${targetUserId} (Name: ${rooms[sessionId].users[targetUserId].name}) in session ${sessionId}: canDraw = ${canDraw} by host ${socket.id}`);
+                
+                // Broadcast the permission update to everyone in the room
+                io.to(sessionId).emit('permission_updated', {
+                    userId: targetUserId,
+                    userName: rooms[sessionId].users[targetUserId].name, // Include name for easier client update
+                    canDraw: canDraw,
+                    isHost: rooms[sessionId].users[targetUserId].isHost, // Send isHost too
+                    updatedByHostId: socket.id 
+                });
+            } else {
+                console.warn(`Host ${socket.id} tried to update permission for non-existent user ${targetUserId} in session ${sessionId}`);
+            }
+        } else {
+            console.warn(`Unauthorized attempt to update permission by ${socket.id} (not host or invalid session) for session ${sessionId}. Requester's actual host status: ${rooms[currentSessionId]?.users[socket.id]?.isHost}`);
         }
     });
 
     socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id} (Name: ${currentUserName})`);
-        if (currentSessionId && rooms[currentSessionId]) {
-            let userWasInRoom = false;
-            if (rooms[currentSessionId].users && rooms[currentSessionId].users[socket.id]) {
-                delete rooms[currentSessionId].users[socket.id];
-                userWasInRoom = true;
-            } else if (Array.isArray(rooms[currentSessionId])) {
-                const index = rooms[currentSessionId].indexOf(socket.id);
-                if (index !== -1) {
-                    rooms[currentSessionId].splice(index, 1);
-                    userWasInRoom = true;
-                }
-            }
+        console.log(`User disconnected: ${socket.id} (Last known name: ${currentUserName})`);
+        if (currentSessionId && rooms[currentSessionId] && rooms[currentSessionId].users[socket.id]) {
+            const disconnectedUser = rooms[currentSessionId].users[socket.id];
+            const wasHost = disconnectedUser.isHost;
+            
+            delete rooms[currentSessionId].users[socket.id];
+            
+            socket.to(currentSessionId).emit('user_left', { 
+                userId: socket.id, 
+                userName: disconnectedUser.name, // Use the stored name
+                sessionId: currentSessionId 
+            });
+            console.log(`User ${socket.id} (Name: ${disconnectedUser.name}) removed from session: ${currentSessionId}`);
 
-            if (userWasInRoom) {
-                socket.to(currentSessionId).emit('user_left', { userId: socket.id, userName: currentUserName, sessionId: currentSessionId });
-                console.log(`User ${socket.id} (Name: ${currentUserName}) removed from session: ${currentSessionId}`);
-
-                const remainingUsersCount = rooms[currentSessionId].users ? Object.keys(rooms[currentSessionId].users).length : rooms[currentSessionId].length;
-                if (remainingUsersCount === 0) {
-                    delete rooms[currentSessionId];
-                    console.log(`Session ${currentSessionId} is now empty and removed.`);
-                } else {
-                    console.log(`Current users in session ${currentSessionId}:`, rooms[currentSessionId].users || rooms[currentSessionId]);
+            if (Object.keys(rooms[currentSessionId].users).length === 0) {
+                // If room is empty, delete it
+                delete rooms[currentSessionId];
+                console.log(`Session ${currentSessionId} is now empty and removed.`);
+            } else {
+                // If the host disconnected
+                if (wasHost) {
+                    rooms[currentSessionId].hostId = null; // Mark that the original host is gone
+                    console.log(`Host (User ${socket.id}, Name: ${disconnectedUser.name}) left session ${currentSessionId}. No active host to manage permissions unless re-assigned.`);
+                    // Optionally, broadcast this specific event to clients so they can update UI
+                    // io.to(currentSessionId).emit('host_left_session', { sessionId: currentSessionId });
                 }
+                console.log(`Current users in session ${currentSessionId}:`, rooms[currentSessionId].users);
             }
+        } else {
+            // This can happen if a user disconnects before successfully joining a room
+            console.log(`User ${socket.id} disconnected without being fully in a tracked session.`);
         }
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`AR Whiteboard (HTTP) Server listening on port ${PORT}`);
-    // No need for "Access it at https://localhost..." as Render handles public access
+    console.log(`AR Whiteboard (HTTP with Permissions) Server listening on port ${PORT}`);
 });
