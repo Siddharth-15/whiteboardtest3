@@ -594,6 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         function handlePointerDown(event) {
+               console.log("[SESSION PAGE] HOST/CLIENT handlePointerDown FIRED. currentUserCanDraw:", currentUserCanDraw, "Tool:", currentLocalTool);
             if (!currentUserCanDraw) {
                 console.log("[SESSION PAGE] Drawing attempt denied (handlePointerDown). User cannot draw. currentUserCanDraw:", currentUserCanDraw);
                 return; 
@@ -645,6 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function handlePointerMove(event) {
+              console.log("[SESSION PAGE] HOST/CLIENT handlePointerMove FIRED. isDrawingForEmit:", isDrawingForEmit, "isDrawingLocal:", isDrawingLocal, "Tool:", currentLocalTool);
             if (!isDrawingForEmit && currentLocalTool !== 'tool-eraser' && !isDrawingLocal) return; 
             if (!currentUserCanDraw && isDrawingForEmit) { 
                  console.log("[SESSION PAGE] Drawing stopped mid-move due to permission revocation. currentUserCanDraw:", currentUserCanDraw);
