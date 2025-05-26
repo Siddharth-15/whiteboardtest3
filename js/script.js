@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
-          socket = io('https://localhost:3001', { /* transports: ['websocket'] */ });
+          socket = io('https://whiteboardtest3.onrender.com');
           socket.on('connect', () => {
           console.log('[SESSION PAGE] Connected to Socket.IO server with ID:', socket.id);
           localUserId = socket.id;
