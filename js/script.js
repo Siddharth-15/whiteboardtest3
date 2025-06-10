@@ -437,7 +437,6 @@ if (canvasElement) {
         } else { // New session or joiner
             history = []; historyStep = -1; // Reset local history
             ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            saveHistory(); // Save initial blank state
         }
         updateUndoRedoButtons(); // Your existing function
         canvasElement.style.cursor = 'crosshair';
@@ -446,18 +445,43 @@ if (canvasElement) {
     }
     
 
+    // REPLACE THE ENTIRE FUNCTION WITH THIS
     function resizeCanvas() {
-        const container = canvasElement.parentElement;
-        if (!container) return;
-        const style = getComputedStyle(container);
-        const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-        const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-        canvasElement.width = container.clientWidth - paddingX;
-        canvasElement.height = container.clientHeight - paddingY;
-        redrawHistoryState(); // This will redraw the current history step
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; // Re-apply these
-    }
-    function redrawHistoryState() {
+            const container = canvasElement.parentElement;
+                if (!container) return;
+    
+    // Save the current drawing to redraw it after resize
+            const savedCanvas = canvasElement.toDataURL();
+
+          const style = getComputedStyle(container);
+          const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+          const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+
+          canvasElement.width = container.clientWidth - paddingX;
+          canvasElement.height = container.clientHeight - paddingY;
+    
+    // Re-apply settings
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+    
+    // Redraw the saved state. If it was a new canvas, this will be blank.
+          const img = new Image();
+          img.onload = () => {
+              ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+              ctx.drawImage(img, 0, 0);
+          };
+    // FIX: If the saved image was invalid (like from a 0x0 canvas),
+    // this ensures we start with a clean, blank slate.
+          img.onerror = () => {
+              ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        // This is a new, blank canvas, so we must reset the history.
+              history = [];
+              historyStep = -1;
+              saveHistory(); // Save the first valid, blank state.
+          };
+          img.src = savedCanvas;
+      }
+      function redrawHistoryState() {
         if (history.length > 0 && historyStep >= 0 && history[historyStep]) {
             const img = new Image();
             img.onload = () => { ctx.clearRect(0, 0, canvasElement.width, canvasElement.height); ctx.drawImage(img, 0, 0, canvasElement.width, canvasElement.height); };
@@ -539,7 +563,14 @@ if (canvasElement) {
                 updateUndoRedoButtons();
                 console.log(`[SESSION PAGE] Session ${idToLoad} drawn.`);
             };
-            img.onerror = () => { console.error(`Error loading image for ${idToLoad}.`); history=[];historyStep=-1;saveHistory();updateUndoRedoButtons();};
+            img.onerror = () => {
+                  console.error(`Error loading image for session ${idToLoad}. Starting fresh.`);
+                  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height); // Explicitly clear
+                  history = [];
+                  historyStep = -1;
+                  saveHistory(); // Save a valid blank state
+                  updateUndoRedoButtons();
+                  };
             img.src = sessionToLoad.imageDataUrl;
         } else {
             console.warn(`Session ${idToLoad} not found or no image data. Starting fresh for this ID.`);
