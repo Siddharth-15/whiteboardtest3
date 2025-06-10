@@ -91,12 +91,16 @@ io.on('connection', (socket) => {
         } else {
             console.warn(`Invalid drawing_action or user not in session:`, data, `Socket: ${socket.id}, Expected session: ${currentJoinedSessionId}`);
         }
-        socket.on('ar_pointer_action', (data) => {
-    if (data && data.sessionId) {
-        // Just broadcast it to the room. We don't need a lot of validation here.
-        socket.to(data.sessionId).emit('ar_pointer_broadcast', data);
-    }
+        
     });
+
+     socket.on('ar_pointer_action', (data) => {
+        if (data && data.sessionId) {
+            // Just broadcast it to the room.
+            socket.to(data.sessionId).emit('ar_pointer_broadcast', data);
+        }
+    });
+
 
     // Event when a user disconnects
     socket.on('disconnect', () => {
