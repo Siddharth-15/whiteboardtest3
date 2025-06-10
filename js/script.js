@@ -289,6 +289,7 @@ if (canvasElement) {
     const arVideoFeed = document.getElementById('arVideoFeed');
     const bodyElement = document.body;
     let arVideoStream = null; // To hold the camera stream
+    let isArCanvasPlaced = false;
 
     let isDrawingLocal = false; // For local non-pencil drawing states (shapes, text)
     let currentLocalTool = 'tool-pencil'; // Your tool state (e.g. 'tool-pencil', 'tool-line')
@@ -303,38 +304,32 @@ if (canvasElement) {
     let lastEmitX, lastEmitY;
 
 
-    function toggleArMode() {
+  function toggleArMode() {
     if (!arModeBtn || !arVideoFeed) return;
+    const placementPrompt = document.getElementById('ar-placement-prompt');
 
-    // Check if we are currently in AR mode
     if (bodyElement.classList.contains('ar-mode-active')) {
         // --- EXIT AR MODE ---
         console.log("Exiting AR Mode.");
         if (arVideoStream) {
-            // Stop every track in the stream (this turns off the camera)
             arVideoStream.getTracks().forEach(track => track.stop());
             arVideoStream = null;
         }
         arVideoFeed.style.display = 'none';
         bodyElement.classList.remove('ar-mode-active');
         arModeBtn.innerHTML = '<i class="bi bi-camera-video-fill me-1"></i> AR View';
-
+        
         window.removeEventListener('deviceorientation', handleDeviceOrientation);
+        isArCanvasPlaced = false; // Reset placement state
+        if (placementPrompt) placementPrompt.style.display = 'none';
 
-        // Reset the canvas style when exiting
         const canvasWrapper = document.getElementById('canvas-ar-wrapper');
         if(canvasWrapper) canvasWrapper.style.transform = 'none';
-
 
     } else {
         // --- ENTER AR MODE ---
         console.log("Attempting to enter AR Mode.");
-        // We request the rear camera ('environment')
-        const constraints = {
-            video: {
-                facingMode: 'environment' 
-            }
-        };
+        const constraints = { video: { facingMode: 'environment' } };
 
         navigator.mediaDevices.getUserMedia(constraints)
             .then(stream => {
@@ -344,41 +339,35 @@ if (canvasElement) {
                 arVideoFeed.style.display = 'block';
                 bodyElement.classList.add('ar-mode-active');
                 arModeBtn.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Exit AR';
-                if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-            } else {
-                console.warn("DeviceOrientationEvent not supported on this device.");
-            }
+                
+                // Show the prompt
+                if (placementPrompt) placementPrompt.style.display = 'block';
+                isArCanvasPlaced = false; // Set initial state
             })
             .catch(err => {
                 console.error("Error accessing camera for AR Mode:", err);
-                alert("Could not access camera. Please ensure you've given permission. On some desktops, you may not have a rear camera available.");
+                alert("Could not access camera. Please ensure you've given permission.");
             });
     }
 }
-
     function handleDeviceOrientation(event) {
-        const canvasWrapper = document.getElementById('canvas-ar-wrapper');
-        if (!canvasWrapper || !bodyElement.classList.contains('ar-mode-active')) {
-            return; // Don't run if not in AR mode
-        }
+    // ONLY run the motion effect IF the canvas has been "placed".
+    if (!isArCanvasPlaced) return; 
 
-    // event.gamma is the left-to-right tilt (from -90 to 90)
-    // event.beta is the front-to-back tilt (from -180 to 180)
-        const maxRotationY = 15; // Max rotation in degrees
-        const maxRotationX = 15;
-
-    // Normalize the values
-        let rotY = (event.gamma / 90) * maxRotationY;
-        let rotX = ((event.beta - 90) / 90) * maxRotationX;
-
-    // Clamp the values to the max rotation
-        rotY = Math.max(-maxRotationY, Math.min(maxRotationY, rotY));
-        rotX = Math.max(-maxRotationX, Math.min(maxRotationX, rotX));
-
-    // Apply the 3D rotation to the canvas.
-        canvasWrapper.style.transform = `rotateX(${-rotX}deg) rotateY(${rotY}deg) translateZ(-50px)`;
+    const canvasWrapper = document.getElementById('canvas-ar-wrapper');
+    if (!canvasWrapper || !bodyElement.classList.contains('ar-mode-active')) {
+        return;
     }
+
+    const maxRotationY = 15;
+    const maxRotationX = 15;
+    let rotY = (event.gamma / 90) * maxRotationY;
+    let rotX = ((event.beta - 90) / 90) * maxRotationX;
+    rotY = Math.max(-maxRotationY, Math.min(maxRotationY, rotY));
+    rotX = Math.max(-maxRotationX, Math.min(maxRotationX, rotX));
+    canvasWrapper.style.transform = `rotateX(${-rotX}deg) rotateY(${rotY}deg) translateZ(-50px)`;
+}
+
     
     function initializeSessionPage() {
         console.log("[SESSION PAGE] initializeSessionPage CALLED");
@@ -610,19 +599,36 @@ if (canvasElement) {
     }
 
     // --- EVENT HANDLERS FOR DRAWING (local rendering + emitting collaborative actions) ---
-    function addCanvasEventListeners() { // Your existing function name
-        console.log("[SESSION PAGE] Attaching canvas drawing event listeners.");
-        canvasElement.addEventListener('mousedown', handlePointerDown);
-        canvasElement.addEventListener('mousemove', handlePointerMove);
-        canvasElement.addEventListener('mouseup', handlePointerUp);
-        canvasElement.addEventListener('mouseout', handlePointerUp); // Keep this to stop drawing if mouse leaves
-        // Touch events - your existing setup
-        canvasElement.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }, { passive: false });
-        canvasElement.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }, { passive: false });
-        canvasElement.addEventListener('touchend', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
-        canvasElement.addEventListener('touchcancel', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
-        canvasElement.addEventListener('click', handleArPointerClick);
-    }
+   function addCanvasEventListeners() {
+    console.log("[SESSION PAGE] Attaching canvas drawing event listeners.");
+    canvasElement.addEventListener('mousedown', handlePointerDown);
+    canvasElement.addEventListener('mousemove', handlePointerMove);
+    canvasElement.addEventListener('mouseup', handlePointerUp);
+    canvasElement.addEventListener('mouseout', handlePointerUp);
+    canvasElement.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }, { passive: false });
+    canvasElement.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }, { passive: false });
+    canvasElement.addEventListener('touchend', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
+    canvasElement.addEventListener('touchcancel', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
+
+    // This handles the new "Tap to Place" logic.
+    canvasElement.addEventListener('click', function(event) {
+        if (bodyElement.classList.contains('ar-mode-active') && !isArCanvasPlaced) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            console.log("AR Canvas has been placed.");
+            isArCanvasPlaced = true;
+            document.getElementById('ar-placement-prompt').style.display = 'none';
+            
+            // Start listening for motion events ONLY after placement.
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+            } else {
+                console.warn("DeviceOrientationEvent not supported on this device.");
+            }
+        }
+    }, true); // Use capture phase to handle this click before anything else.
+}
 
 
     
@@ -684,7 +690,7 @@ function handleArPointerClick(event) {
     }
     
     function handlePointerDown(event) {
-        if (bodyElement.classList.contains('ar-mode-active')) { return; }
+    
         const coords = getCanvasCoordinates(event);
         if (!coords || (event.buttons && event.buttons !== 1 && event.type.startsWith('mouse'))) return; // Only left mouse button
 
