@@ -284,6 +284,11 @@ if (canvasElement) {
     const redoBtn = document.getElementById('tool-redo');
     // const sessionTimerDisplay = document.getElementById('sessionTimerDisplay'); // Your timer display
     const textToolInput = document.getElementById('textToolInput');
+   
+    const arModeBtn = document.getElementById('arModeBtn');
+    const arVideoFeed = document.getElementById('arVideoFeed');
+    const bodyElement = document.body;
+    let arVideoStream = null; // To hold the camera stream
 
     let isDrawingLocal = false; // For local non-pencil drawing states (shapes, text)
     let currentLocalTool = 'tool-pencil'; // Your tool state (e.g. 'tool-pencil', 'tool-line')
@@ -298,6 +303,49 @@ if (canvasElement) {
     let lastEmitX, lastEmitY;
 
 
+    function toggleArMode() {
+    if (!arModeBtn || !arVideoFeed) return;
+
+    // Check if we are currently in AR mode
+    if (bodyElement.classList.contains('ar-mode-active')) {
+        // --- EXIT AR MODE ---
+        console.log("Exiting AR Mode.");
+        if (arVideoStream) {
+            // Stop every track in the stream (this turns off the camera)
+            arVideoStream.getTracks().forEach(track => track.stop());
+            arVideoStream = null;
+        }
+        arVideoFeed.style.display = 'none';
+        bodyElement.classList.remove('ar-mode-active');
+        arModeBtn.innerHTML = '<i class="bi bi-camera-video-fill me-1"></i> AR View';
+
+    } else {
+        // --- ENTER AR MODE ---
+        console.log("Attempting to enter AR Mode.");
+        // We request the rear camera ('environment')
+        const constraints = {
+            video: {
+                facingMode: 'environment' 
+            }
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                console.log("Camera access granted.");
+                arVideoStream = stream;
+                arVideoFeed.srcObject = stream;
+                arVideoFeed.style.display = 'block';
+                bodyElement.classList.add('ar-mode-active');
+                arModeBtn.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Exit AR';
+            })
+            .catch(err => {
+                console.error("Error accessing camera for AR Mode:", err);
+                alert("Could not access camera. Please ensure you've given permission. On some desktops, you may not have a rear camera available.");
+            });
+    }
+}
+
+    
     function initializeSessionPage() {
         console.log("[SESSION PAGE] initializeSessionPage CALLED");
         const urlParams = new URLSearchParams(window.location.search);
@@ -318,6 +366,11 @@ if (canvasElement) {
 
         resizeCanvas(); // Use your resizeCanvas
         window.addEventListener('resize', resizeCanvas);
+
+        if (joinerNameFromURL && arModeBtn) {
+        arModeBtn.style.display = 'block'; // Show the button
+        arModeBtn.addEventListener('click', toggleArMode);
+        }
 
         if (colorPicker) {
             currentLocalColor = colorPicker.value;
