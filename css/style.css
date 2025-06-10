@@ -836,27 +836,29 @@ body.ar-mode-active #tsparticles-bg {
 
 /* === Dynamic AR Mode Enhancements === */
 
+/* === CORRECTED Wrapper Style for Perfect Layout === */
+
+/* 
+* By default, make the wrapper "disappear" from the layout
+* so it doesn't affect its children at all.
+*/
 #canvas-ar-wrapper {
-    width: 100%;
-    height: 100%;
-    display: flex; /* This ensures the canvas inside can be sized correctly */
-    align-items: center;
-    justify-content: center;
+    display: contents; 
 }
 
-/*
-* ONLY when AR mode is active, do we apply the 3D effects.
+/* 
+* ONLY when AR mode is active, change the display property
+* so that our 3D transforms can be applied to it.
 */
 body.ar-mode-active #canvas-ar-wrapper {
+    display: block; /* Change display to 'block' to enable transforms */
+    width: 100%;
+    height: 100%;
     perspective: 1000px;
     transition: transform 0.1s linear;
 }
 
-body.ar-mode-active #canvas-ar-wrapper #whiteboardCanvas {
-    /* Smooths out the transformations */
-    transition: transform 0.1s linear;
-}
-
+/* The rest of your AR styles should remain the same */
 /* --- The rest of your AR styles remain the same --- */
 #arVideoFeed {
     position: fixed;
