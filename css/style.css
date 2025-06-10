@@ -802,3 +802,34 @@ body.session-page-body {
     font-size: 4rem !important; /* Larger inbox icon */
     opacity: 0.5;
 }
+
+/* === AR "Magic Window" Mode Styles === */
+
+#arVideoFeed {
+    /* Makes the video a fullscreen background layer */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover; /* Ensures video covers the screen without distortion */
+    z-index: -2; /* Sits behind everything, even tsParticles */
+}
+
+/* When AR mode is active, we apply changes with this class on the body */
+body.ar-mode-active .whiteboard-canvas-container,
+body.ar-mode-active #whiteboardCanvas {
+    /* Make the canvas and its container background transparent */
+    background-color: transparent !important;
+}
+
+body.ar-mode-active #whiteboardCanvas {
+    /* Add a subtle effect to make the drawing "pop" against the camera feed */
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+body.ar-mode-active #tsparticles-bg {
+    /* Hide the particle background when AR mode is on */
+    display: none;
+}
