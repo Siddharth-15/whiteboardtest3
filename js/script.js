@@ -734,123 +734,121 @@ function handleArPointerClick(event) {
         }
     }
 
-    function handlePointerMove(event) {
-        if (!isDrawingForEmit && currentLocalTool !== 'tool-eraser') return; // If not drawing for emit (pencil) and not eraser
-        
-        const coords = getCanvasCoordinates(event);
-        if (!coords) return;
+    // REPLACE THE ENTIRE FUNCTION WITH THIS
+function handlePointerMove(event) {
+    // FIX 1: This allows ALL drawing tools (pencil, shapes, eraser) to work.
+    if (!isDrawingLocal) return;
 
-        // Handle local shape preview (your existing logic)
-        if (localSnapshot && ['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool) && isDrawingLocal) {
-             ctx.putImageData(localSnapshot, 0, 0);
-        }
-        
-        ctx.lineWidth = currentLocalLineWidth;
-        ctx.strokeStyle = currentLocalColor;
-        ctx.fillStyle = currentLocalColor;
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const coords = getCanvasCoordinates(event);
+    if (!coords) return;
 
-        if (currentLocalTool === 'tool-pencil' && isDrawingForEmit) {
-            // Local drawing of segment
-            ctx.beginPath(); // Start new path for the segment
-            ctx.moveTo(lastEmitX, lastEmitY);
-            ctx.lineTo(coords.x, coords.y);
-            ctx.stroke();
-            // Emit segment
-            const segmentData = {
-                type: 'draw_segment', tool: 'pencil',
-                startX: lastEmitX, startY: lastEmitY,
-                endX: coords.x, endY: coords.y,
-                color: currentLocalColor, lineWidth: currentLocalLineWidth,
-                sessionId: currentSessionIdFromURL, userId: localUserId
-            };
-            if (socket && socket.connected) socket.emit('drawing_action', segmentData);
-            lastEmitX = coords.x; lastEmitY = coords.y;
-        } } else if (currentLocalTool === 'tool-eraser' && isDrawingLocal) {
-    // --- COLLABORATIVE ERASER LOGIC ---
-    // Use a special canvas operation to "erase" pixels
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Draw the erase path locally
-    ctx.beginPath();
-    ctx.moveTo(lastEmitX, lastEmitY);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-
-    // Reset the canvas operation immediately
-    ctx.globalCompositeOperation = 'source-over';
-
-    // Emit the erase path to other users
-    const eraseData = {
-        type: 'erase_segment', // A new event type for erasing
-        startX: lastEmitX,
-        startY: lastEmitY,
-        endX: coords.x,
-        endY: coords.y,
-        lineWidth: currentLocalLineWidth,
-        sessionId: currentSessionIdFromURL,
-        userId: localUserId
-    };
-    if (socket && socket.connected) {
-        socket.emit('drawing_action', eraseData);
+    // Handle local shape preview
+    if (localSnapshot && ['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
+        ctx.putImageData(localSnapshot, 0, 0);
     }
 
-    // Update the last position for the next segment
-    lastEmitX = coords.x;
-    lastEmitY = coords.y;
+    ctx.lineWidth = currentLocalLineWidth;
+    ctx.strokeStyle = currentLocalColor;
+    ctx.fillStyle = currentLocalColor;
+
+    if (currentLocalTool === 'tool-pencil') {
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(lastEmitX, lastEmitY);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+
+        const segmentData = {
+            type: 'draw_segment', tool: 'pencil',
+            startX: lastEmitX, startY: lastEmitY,
+            endX: coords.x, endY: coords.y,
+            color: currentLocalColor, lineWidth: currentLocalLineWidth,
+            sessionId: currentSessionIdFromURL, userId: localUserId
+        };
+        if (socket && socket.connected) socket.emit('drawing_action', segmentData);
+
+        lastEmitX = coords.x;
+        lastEmitY = coords.y;
+
+    } else if (currentLocalTool === 'tool-eraser') {
+        // FIX 2: Collaborative eraser logic.
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalCompositeOperation = 'destination-out'; // Use composite op to erase
+        ctx.beginPath();
+        ctx.moveTo(lastEmitX, lastEmitY);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over'; // Reset immediately
+
+        const eraseData = {
+            type: 'erase_segment',
+            startX: lastEmitX, startY: lastEmitY,
+            endX: coords.x, endY: coords.y,
+            lineWidth: currentLocalLineWidth,
+            sessionId: currentSessionIdFromURL, userId: localUserId
+        };
+        if (socket && socket.connected) socket.emit('drawing_action', eraseData);
+
+        lastEmitX = coords.x;
+        lastEmitY = coords.y;
+
+    } else if (currentLocalTool === 'tool-line') {
+        ctx.beginPath();
+        ctx.moveTo(localStartX, localStartY);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+    } else if (currentLocalTool === 'tool-rectangle') {
+        ctx.beginPath();
+        ctx.strokeRect(localStartX, localStartY, coords.x - localStartX, coords.y - localStartY);
+    } else if (currentLocalTool === 'tool-circle') {
+        ctx.beginPath();
+        let r = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
+        ctx.arc(localStartX, localStartY, r, 0, 2 * Math.PI);
+        ctx.stroke();
+    }
 }
-    }
 
-    function handlePointerUp(event) {
-        if (!isDrawingLocal) return;
+    // REPLACE THE ENTIRE FUNCTION WITH THIS
+function handlePointerUp(event) {
+    if (!isDrawingLocal) return;
 
-        const coords = getCanvasCoordinates(event) || { x: lastEmitX, y: lastEmitY }; // Use last known if event has no coords (e.g. mouseout)
+    const coords = getCanvasCoordinates(event) || { x: lastEmitX, y: lastEmitY };
 
-       if (isDrawingLocal && ['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
-             // Emit final shape/eraser path if it's one of these tools
-            let actionData = {
-                tool: currentLocalTool.replace('tool-', ''),
-                startX: localStartX, startY: localStartY,
-                endX: coords.x, endY: coords.y, // Final coords
-                color: currentLocalColor, // Eraser will use background color effectively
-                lineWidth: currentLocalLineWidth,
-                sessionId: currentSessionIdFromURL, userId: localUserId
-            };
+    // FIX 3: This now correctly handles ONLY shapes, because the eraser is handled above.
+    if (['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
+        let actionData = {
+            tool: currentLocalTool.replace('tool-', ''),
+            startX: localStartX, startY: localStartY,
+            endX: coords.x, endY: coords.y,
+            color: currentLocalColor,
+            lineWidth: currentLocalLineWidth,
+            sessionId: currentSessionIdFromURL, userId: localUserId
+        };
 
-            if (currentLocalTool === 'tool-line') actionData.type = 'draw_shape_line';
-            else if (currentLocalTool === 'tool-rectangle') actionData.type = 'draw_shape_rect';
-            else if (currentLocalTool === 'tool-circle') {
-                actionData.type = 'draw_shape_circle';
-                actionData.radius = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
-            } else if (currentLocalTool === 'tool-eraser') {
-                // For eraser, we might need to send a series of points if it's freehand
-                // This simple model sends start/end, which isn't great for freehand eraser.
-                // COLLABORATIVE ERASER NEEDS MORE WORK. For now, local only.
-                // To make it somewhat work, we could send it like a thick line:
-                // actionData.type = 'erase_segment_collab'; // A new type
-                // if (socket && socket.connected) socket.emit('drawing_action', actionData);
-            }
-            
-            if (socket && socket.connected && currentLocalTool !== 'tool-eraser') { // Don't emit eraser yet
-                 socket.emit('drawing_action', actionData);
-            }
+        if (currentLocalTool === 'tool-line') {
+            actionData.type = 'draw_shape_line';
+        } else if (currentLocalTool === 'tool-rectangle') {
+            actionData.type = 'draw_shape_rect';
+        } else if (currentLocalTool === 'tool-circle') {
+            actionData.type = 'draw_shape_circle';
+            actionData.radius = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
         }
-        
-        isDrawingForEmit = false;
-        isDrawingLocal = false;
-        localSnapshot = null;
 
-        if (currentLocalTool === 'tool-text') {
-            // Finalize text if mouseup outside text input
-            if (textToolInput && textToolInput.style.display === 'block' && document.activeElement !== textToolInput) {
-                 // finalizeText(); // This is called on blur, might be enough
-            }
-        } else {
-             saveHistory(); // Save state after any local drawing operation is complete
+        if (socket && socket.connected) {
+            socket.emit('drawing_action', actionData);
         }
     }
+
+    isDrawingForEmit = false;
+    isDrawingLocal = false;
+    localSnapshot = null;
+
+    if (currentLocalTool !== 'tool-text') {
+        saveHistory();
+    }
+}
 
     // --- SOCKET.IO EVENT HANDLERS (Receiving and Rendering Collaborative Actions) ---
     function handleDrawingActionBroadcast(data) {
