@@ -113,6 +113,10 @@
 
             <!-- Whiteboard Canvas Column -->
             <div class="whiteboard-canvas-container flex-grow-1" data-animation="zoomIn" data-delay="200">
+                   <!-- ADD THIS WRAPPER DIV -->
+                 <div id="canvas-ar-wrapper">
+                 <canvas id="whiteboardCanvas"></canvas>
+                 </div>
                 <canvas id="whiteboardCanvas"></canvas>
                 <!-- Hidden textarea for text tool input -->
                 <textarea id="textToolInput" class="form-control" style="display: none; position: absolute; z-index: 10; border: 1px dashed var(--accent-color-primary); background-color: rgba(var(--primary-bg-rgb), 0.85); color: var(--primary-text); resize: none; padding: 5px; font-family: 'Poppins', sans-serif; overflow-y: hidden;"></textarea>
