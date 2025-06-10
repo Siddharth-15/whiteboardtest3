@@ -1,4 +1,4 @@
-      // js/script.js - FULLY RE-INTEGRATED AND CONSOLIDATED WITH COLLABORATIVE FEATURES
+// js/script.js - FULLY RE-INTEGRATED AND CONSOLIDATED WITH COLLABORATIVE FEATURES
 
 document.addEventListener('DOMContentLoaded', function() {
 console.log("Main DOMContentLoaded Fired - AR WhiteBoard Scripts Initializing...");
@@ -289,7 +289,6 @@ if (canvasElement) {
     const arVideoFeed = document.getElementById('arVideoFeed');
     const bodyElement = document.body;
     let arVideoStream = null; // To hold the camera stream
-    let isArCanvasPlaced = false;
 
     let isDrawingLocal = false; // For local non-pencil drawing states (shapes, text)
     let currentLocalTool = 'tool-pencil'; // Your tool state (e.g. 'tool-pencil', 'tool-line')
@@ -304,32 +303,31 @@ if (canvasElement) {
     let lastEmitX, lastEmitY;
 
 
-  function toggleArMode() {
+    function toggleArMode() {
     if (!arModeBtn || !arVideoFeed) return;
-    const placementPrompt = document.getElementById('ar-placement-prompt');
 
+    // Check if we are currently in AR mode
     if (bodyElement.classList.contains('ar-mode-active')) {
         // --- EXIT AR MODE ---
         console.log("Exiting AR Mode.");
         if (arVideoStream) {
+            // Stop every track in the stream (this turns off the camera)
             arVideoStream.getTracks().forEach(track => track.stop());
             arVideoStream = null;
         }
         arVideoFeed.style.display = 'none';
         bodyElement.classList.remove('ar-mode-active');
         arModeBtn.innerHTML = '<i class="bi bi-camera-video-fill me-1"></i> AR View';
-        
-        window.removeEventListener('deviceorientation', handleDeviceOrientation);
-        isArCanvasPlaced = false; // Reset placement state
-        if (placementPrompt) placementPrompt.style.display = 'none';
-
-        const canvasWrapper = document.getElementById('canvas-ar-wrapper');
-        if(canvasWrapper) canvasWrapper.style.transform = 'none';
 
     } else {
         // --- ENTER AR MODE ---
         console.log("Attempting to enter AR Mode.");
-        const constraints = { video: { facingMode: 'environment' } };
+        // We request the rear camera ('environment')
+        const constraints = {
+            video: {
+                facingMode: 'environment' 
+            }
+        };
 
         navigator.mediaDevices.getUserMedia(constraints)
             .then(stream => {
@@ -339,33 +337,12 @@ if (canvasElement) {
                 arVideoFeed.style.display = 'block';
                 bodyElement.classList.add('ar-mode-active');
                 arModeBtn.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Exit AR';
-                
-                // Show the prompt
-                if (placementPrompt) placementPrompt.style.display = 'block';
-                isArCanvasPlaced = false; // Set initial state
             })
             .catch(err => {
                 console.error("Error accessing camera for AR Mode:", err);
-                alert("Could not access camera. Please ensure you've given permission.");
+                alert("Could not access camera. Please ensure you've given permission. On some desktops, you may not have a rear camera available.");
             });
     }
-}
-    function handleDeviceOrientation(event) {
-    // ONLY run the motion effect IF the canvas has been "placed".
-    if (!isArCanvasPlaced) return; 
-
-    const canvasWrapper = document.getElementById('canvas-ar-wrapper');
-    if (!canvasWrapper || !bodyElement.classList.contains('ar-mode-active')) {
-        return;
-    }
-
-    const maxRotationY = 15;
-    const maxRotationX = 15;
-    let rotY = (event.gamma / 90) * maxRotationY;
-    let rotX = ((event.beta - 90) / 90) * maxRotationX;
-    rotY = Math.max(-maxRotationY, Math.min(maxRotationY, rotY));
-    rotX = Math.max(-maxRotationX, Math.min(maxRotationX, rotX));
-    canvasWrapper.style.transform = `rotateX(${-rotX}deg) rotateY(${rotY}deg) translateZ(-50px)`;
 }
 
     
@@ -428,15 +405,13 @@ if (canvasElement) {
         socket.on('user_joined', handleUserJoined);
         socket.on('user_left', handleUserLeft);
         socket.on('current_participants', handleCurrentParticipants);
-        socket.on('ar_pointer_broadcast', handleArPointerBroadcast);
-
 
         // Load from localStorage if not a joiner and sessionId exists
         if (currentSessionIdFromURL && !joinerNameFromURL) {
             loadSessionById(currentSessionIdFromURL); // Your existing function
         } else { // New session or joiner
             history = []; historyStep = -1; // Reset local history
-            ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            saveHistory(); // Save initial blank state
         }
         updateUndoRedoButtons(); // Your existing function
         canvasElement.style.cursor = 'crosshair';
@@ -444,44 +419,23 @@ if (canvasElement) {
         console.log("[SESSION PAGE] initializeSessionPage COMPLETED. Session ID:", currentSessionIdFromURL);
     }
     
-
-    // REPLACE THE ENTIRE FUNCTION WITH THIS
+    // --- YOUR EXISTING LOCAL DRAWING HELPER FUNCTIONS ---
+    // resizeCanvas, redrawHistoryState, saveHistory, undo, redo, updateUndoRedoButtons
+    // startSessionTimer, updateTimerDisplay, getCanvasCoordinates
+    // activateTextTool, finalizeText, loadSessionById
+    // --- KEEP THEM AS THEY ARE, I'll integrate calls where needed ---
     function resizeCanvas() {
-            const container = canvasElement.parentElement;
-                if (!container) return;
-    
-    // Save the current drawing to redraw it after resize
-            const savedCanvas = canvasElement.toDataURL();
-
-          const style = getComputedStyle(container);
-          const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-          const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-
-          canvasElement.width = container.clientWidth - paddingX;
-          canvasElement.height = container.clientHeight - paddingY;
-    
-    // Re-apply settings
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-    
-    // Redraw the saved state. If it was a new canvas, this will be blank.
-          const img = new Image();
-          img.onload = () => {
-              ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-              ctx.drawImage(img, 0, 0);
-          };
-    // FIX: If the saved image was invalid (like from a 0x0 canvas),
-    // this ensures we start with a clean, blank slate.
-          img.onerror = () => {
-              ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        // This is a new, blank canvas, so we must reset the history.
-              history = [];
-              historyStep = -1;
-              saveHistory(); // Save the first valid, blank state.
-          };
-          img.src = savedCanvas;
-      }
-      function redrawHistoryState() {
+        const container = canvasElement.parentElement;
+        if (!container) return;
+        const style = getComputedStyle(container);
+        const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+        const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        canvasElement.width = container.clientWidth - paddingX;
+        canvasElement.height = container.clientHeight - paddingY;
+        redrawHistoryState(); // This will redraw the current history step
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; // Re-apply these
+    }
+    function redrawHistoryState() {
         if (history.length > 0 && historyStep >= 0 && history[historyStep]) {
             const img = new Image();
             img.onload = () => { ctx.clearRect(0, 0, canvasElement.width, canvasElement.height); ctx.drawImage(img, 0, 0, canvasElement.width, canvasElement.height); };
@@ -563,14 +517,7 @@ if (canvasElement) {
                 updateUndoRedoButtons();
                 console.log(`[SESSION PAGE] Session ${idToLoad} drawn.`);
             };
-            img.onerror = () => {
-                  console.error(`Error loading image for session ${idToLoad}. Starting fresh.`);
-                  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height); // Explicitly clear
-                  history = [];
-                  historyStep = -1;
-                  saveHistory(); // Save a valid blank state
-                  updateUndoRedoButtons();
-                  };
+            img.onerror = () => { console.error(`Error loading image for ${idToLoad}.`); history=[];historyStep=-1;saveHistory();updateUndoRedoButtons();};
             img.src = sessionToLoad.imageDataUrl;
         } else {
             console.warn(`Session ${idToLoad} not found or no image data. Starting fresh for this ID.`);
@@ -627,98 +574,20 @@ if (canvasElement) {
     }
 
     // --- EVENT HANDLERS FOR DRAWING (local rendering + emitting collaborative actions) ---
-   function addCanvasEventListeners() {
-    console.log("[SESSION PAGE] Attaching canvas drawing event listeners.");
-    canvasElement.addEventListener('mousedown', handlePointerDown);
-    canvasElement.addEventListener('mousemove', handlePointerMove);
-    canvasElement.addEventListener('mouseup', handlePointerUp);
-    canvasElement.addEventListener('mouseout', handlePointerUp);
-    canvasElement.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }, { passive: false });
-    canvasElement.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }, { passive: false });
-    canvasElement.addEventListener('touchend', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
-    canvasElement.addEventListener('touchcancel', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
-
-    // This handles the new "Tap to Place" logic.
-    canvasElement.addEventListener('click', function(event) {
-        if (bodyElement.classList.contains('ar-mode-active') && !isArCanvasPlaced) {
-            event.preventDefault();
-            event.stopPropagation();
-            
-            console.log("AR Canvas has been placed.");
-            isArCanvasPlaced = true;
-            document.getElementById('ar-placement-prompt').style.display = 'none';
-            
-            // Start listening for motion events ONLY after placement.
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-            } else {
-                console.warn("DeviceOrientationEvent not supported on this device.");
-            }
-        }
-    }, true); // Use capture phase to handle this click before anything else.
-}
-
-
-    
-function handleArPointerClick(event) {
-    // Only run this logic if we are in AR mode
-    if (!bodyElement.classList.contains('ar-mode-active')) {
-        return;
-    }
-
-    // Prevent it from trying to draw
-    event.preventDefault();
-    event.stopPropagation();
-
-    const coords = getCanvasCoordinates(event);
-    if (!coords || !socket || !socket.connected) return;
-
-    // Send relative coordinates (0 to 1) for cross-device compatibility
-    const relativeX = coords.x / canvasElement.width;
-    const relativeY = coords.y / canvasElement.height;
-
-    const pointerData = {
-        x: relativeX,
-        y: relativeY,
-        sessionId: currentSessionIdFromURL,
-        userId: localUserId
-    };
-
-    socket.emit('ar_pointer_action', pointerData);
-    
-    // Show local visual feedback immediately for the AR user
-    handleArPointerBroadcast({ x: relativeX, y: relativeY, userId: 'local' });
-}
-
-    function handleArPointerBroadcast(data) {
-        const pointerEffect = document.createElement('div');
-        pointerEffect.className = 'ar-pointer-effect';
-
-        const x = data.x * canvasElement.width;
-        const y = data.y * canvasElement.height;
-
-        pointerEffect.style.left = `${canvasElement.offsetLeft + x}px`;
-        pointerEffect.style.top = `${canvasElement.offsetTop + y}px`;
-
-    // Give a unique color to each user's pointer
-        if (data.userId !== 'local') {
-            let hash = 0;
-            for (let i = 0; i < data.userId.length; i++) {
-                hash = data.userId.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-            pointerEffect.style.borderColor = "#" + "00000".substring(0, 6 - c.length) + c;
-        }
-
-        document.body.appendChild(pointerEffect);
-
-        setTimeout(() => {
-            pointerEffect.remove();
-        }, 600); // Animation duration
+    function addCanvasEventListeners() { // Your existing function name
+        console.log("[SESSION PAGE] Attaching canvas drawing event listeners.");
+        canvasElement.addEventListener('mousedown', handlePointerDown);
+        canvasElement.addEventListener('mousemove', handlePointerMove);
+        canvasElement.addEventListener('mouseup', handlePointerUp);
+        canvasElement.addEventListener('mouseout', handlePointerUp); // Keep this to stop drawing if mouse leaves
+        // Touch events - your existing setup
+        canvasElement.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }, { passive: false });
+        canvasElement.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }, { passive: false });
+        canvasElement.addEventListener('touchend', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
+        canvasElement.addEventListener('touchcancel', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
     }
     
     function handlePointerDown(event) {
-    
         const coords = getCanvasCoordinates(event);
         if (!coords || (event.buttons && event.buttons !== 1 && event.type.startsWith('mouse'))) return; // Only left mouse button
 
@@ -765,121 +634,105 @@ function handleArPointerClick(event) {
         }
     }
 
-    // REPLACE THE ENTIRE FUNCTION WITH THIS
-function handlePointerMove(event) {
-    // FIX 1: This allows ALL drawing tools (pencil, shapes, eraser) to work.
-    if (!isDrawingLocal) return;
+    function handlePointerMove(event) {
+        if (!isDrawingForEmit && currentLocalTool !== 'tool-eraser') return; // If not drawing for emit (pencil) and not eraser
+        
+        const coords = getCanvasCoordinates(event);
+        if (!coords) return;
 
-    const coords = getCanvasCoordinates(event);
-    if (!coords) return;
-
-    // Handle local shape preview
-    if (localSnapshot && ['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
-        ctx.putImageData(localSnapshot, 0, 0);
-    }
-
-    ctx.lineWidth = currentLocalLineWidth;
-    ctx.strokeStyle = currentLocalColor;
-    ctx.fillStyle = currentLocalColor;
-
-    if (currentLocalTool === 'tool-pencil') {
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(lastEmitX, lastEmitY);
-        ctx.lineTo(coords.x, coords.y);
-        ctx.stroke();
-
-        const segmentData = {
-            type: 'draw_segment', tool: 'pencil',
-            startX: lastEmitX, startY: lastEmitY,
-            endX: coords.x, endY: coords.y,
-            color: currentLocalColor, lineWidth: currentLocalLineWidth,
-            sessionId: currentSessionIdFromURL, userId: localUserId
-        };
-        if (socket && socket.connected) socket.emit('drawing_action', segmentData);
-
-        lastEmitX = coords.x;
-        lastEmitY = coords.y;
-
-    } else if (currentLocalTool === 'tool-eraser') {
-        // FIX 2: Collaborative eraser logic.
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalCompositeOperation = 'destination-out'; // Use composite op to erase
-        ctx.beginPath();
-        ctx.moveTo(lastEmitX, lastEmitY);
-        ctx.lineTo(coords.x, coords.y);
-        ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over'; // Reset immediately
-
-        const eraseData = {
-            type: 'erase_segment',
-            startX: lastEmitX, startY: lastEmitY,
-            endX: coords.x, endY: coords.y,
-            lineWidth: currentLocalLineWidth,
-            sessionId: currentSessionIdFromURL, userId: localUserId
-        };
-        if (socket && socket.connected) socket.emit('drawing_action', eraseData);
-
-        lastEmitX = coords.x;
-        lastEmitY = coords.y;
-
-    } else if (currentLocalTool === 'tool-line') {
-        ctx.beginPath();
-        ctx.moveTo(localStartX, localStartY);
-        ctx.lineTo(coords.x, coords.y);
-        ctx.stroke();
-    } else if (currentLocalTool === 'tool-rectangle') {
-        ctx.beginPath();
-        ctx.strokeRect(localStartX, localStartY, coords.x - localStartX, coords.y - localStartY);
-    } else if (currentLocalTool === 'tool-circle') {
-        ctx.beginPath();
-        let r = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
-        ctx.arc(localStartX, localStartY, r, 0, 2 * Math.PI);
-        ctx.stroke();
-    }
-}
-
-    // REPLACE THE ENTIRE FUNCTION WITH THIS
-function handlePointerUp(event) {
-    if (!isDrawingLocal) return;
-
-    const coords = getCanvasCoordinates(event) || { x: lastEmitX, y: lastEmitY };
-
-    // FIX 3: This now correctly handles ONLY shapes, because the eraser is handled above.
-    if (['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
-        let actionData = {
-            tool: currentLocalTool.replace('tool-', ''),
-            startX: localStartX, startY: localStartY,
-            endX: coords.x, endY: coords.y,
-            color: currentLocalColor,
-            lineWidth: currentLocalLineWidth,
-            sessionId: currentSessionIdFromURL, userId: localUserId
-        };
-
-        if (currentLocalTool === 'tool-line') {
-            actionData.type = 'draw_shape_line';
-        } else if (currentLocalTool === 'tool-rectangle') {
-            actionData.type = 'draw_shape_rect';
-        } else if (currentLocalTool === 'tool-circle') {
-            actionData.type = 'draw_shape_circle';
-            actionData.radius = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
+        // Handle local shape preview (your existing logic)
+        if (localSnapshot && ['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool) && isDrawingLocal) {
+             ctx.putImageData(localSnapshot, 0, 0);
         }
+        
+        ctx.lineWidth = currentLocalLineWidth;
+        ctx.strokeStyle = currentLocalColor;
+        ctx.fillStyle = currentLocalColor;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-        if (socket && socket.connected) {
-            socket.emit('drawing_action', actionData);
+        if (currentLocalTool === 'tool-pencil' && isDrawingForEmit) {
+            // Local drawing of segment
+            ctx.beginPath(); // Start new path for the segment
+            ctx.moveTo(lastEmitX, lastEmitY);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            // Emit segment
+            const segmentData = {
+                type: 'draw_segment', tool: 'pencil',
+                startX: lastEmitX, startY: lastEmitY,
+                endX: coords.x, endY: coords.y,
+                color: currentLocalColor, lineWidth: currentLocalLineWidth,
+                sessionId: currentSessionIdFromURL, userId: localUserId
+            };
+            if (socket && socket.connected) socket.emit('drawing_action', segmentData);
+            lastEmitX = coords.x; lastEmitY = coords.y;
+        } else if (currentLocalTool === 'tool-eraser' && (isDrawingForEmit || (event.buttons && event.buttons === 1))) {
+            // Your local eraser logic - COLLABORATIVE ERASER NOT IMPLEMENTED YET
+            if (!isDrawingLocal) { // Start drawing for eraser if not already
+                isDrawingLocal = true; 
+                ctx.beginPath(); ctx.moveTo(coords.x, coords.y);
+            }
+            const bg = getComputedStyle(canvasElement).backgroundColor;
+            ctx.strokeStyle = (bg && bg !== 'rgba(0, 0, 0, 0)') ? bg : '#FFFFFF'; // Eraser color
+            ctx.lineTo(coords.x, coords.y); ctx.stroke();
+        } else if (isDrawingLocal && currentLocalTool === 'tool-line') {
+            ctx.beginPath(); ctx.moveTo(localStartX, localStartY); ctx.lineTo(coords.x, coords.y); ctx.stroke();
+        } else if (isDrawingLocal && currentLocalTool === 'tool-rectangle') {
+            ctx.beginPath(); ctx.strokeRect(localStartX, localStartY, coords.x - localStartX, coords.y - localStartY);
+        } else if (isDrawingLocal && currentLocalTool === 'tool-circle') {
+            ctx.beginPath(); let r = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
+            ctx.arc(localStartX, localStartY, r, 0, 2 * Math.PI); ctx.stroke();
         }
     }
 
-    isDrawingForEmit = false;
-    isDrawingLocal = false;
-    localSnapshot = null;
+    function handlePointerUp(event) {
+        if (!isDrawingForEmit && !isDrawingLocal && currentLocalTool !== 'tool-text') return;
 
-    if (currentLocalTool !== 'tool-text') {
-        saveHistory();
+        const coords = getCanvasCoordinates(event) || { x: lastEmitX, y: lastEmitY }; // Use last known if event has no coords (e.g. mouseout)
+
+        if (isDrawingLocal && ['tool-line', 'tool-rectangle', 'tool-circle', 'tool-eraser'].includes(currentLocalTool)) {
+             // Emit final shape/eraser path if it's one of these tools
+            let actionData = {
+                tool: currentLocalTool.replace('tool-', ''),
+                startX: localStartX, startY: localStartY,
+                endX: coords.x, endY: coords.y, // Final coords
+                color: currentLocalColor, // Eraser will use background color effectively
+                lineWidth: currentLocalLineWidth,
+                sessionId: currentSessionIdFromURL, userId: localUserId
+            };
+
+            if (currentLocalTool === 'tool-line') actionData.type = 'draw_shape_line';
+            else if (currentLocalTool === 'tool-rectangle') actionData.type = 'draw_shape_rect';
+            else if (currentLocalTool === 'tool-circle') {
+                actionData.type = 'draw_shape_circle';
+                actionData.radius = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
+            } else if (currentLocalTool === 'tool-eraser') {
+                // For eraser, we might need to send a series of points if it's freehand
+                // This simple model sends start/end, which isn't great for freehand eraser.
+                // COLLABORATIVE ERASER NEEDS MORE WORK. For now, local only.
+                // To make it somewhat work, we could send it like a thick line:
+                // actionData.type = 'erase_segment_collab'; // A new type
+                // if (socket && socket.connected) socket.emit('drawing_action', actionData);
+            }
+            
+            if (socket && socket.connected && currentLocalTool !== 'tool-eraser') { // Don't emit eraser yet
+                 socket.emit('drawing_action', actionData);
+            }
+        }
+        
+        isDrawingForEmit = false;
+        isDrawingLocal = false;
+        localSnapshot = null;
+
+        if (currentLocalTool === 'tool-text') {
+            // Finalize text if mouseup outside text input
+            if (textToolInput && textToolInput.style.display === 'block' && document.activeElement !== textToolInput) {
+                 // finalizeText(); // This is called on blur, might be enough
+            }
+        } else {
+             saveHistory(); // Save state after any local drawing operation is complete
+        }
     }
-}
 
     // --- SOCKET.IO EVENT HANDLERS (Receiving and Rendering Collaborative Actions) ---
     function handleDrawingActionBroadcast(data) {
@@ -895,15 +748,6 @@ function handlePointerUp(event) {
                 break;
             case 'draw_dot':
                 if (data.tool === 'pencil_dot') { ctx.fillStyle = data.color; ctx.beginPath(); ctx.arc(data.x, data.y, data.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); }
-                break;
-            case 'erase_segment':
-                ctx.lineWidth = data.lineWidth;
-                ctx.globalCompositeOperation = 'destination-out'; // Use erase mode
-                ctx.beginPath();
-                ctx.moveTo(data.startX, data.startY);
-                ctx.lineTo(data.endX, data.endY);
-                ctx.stroke();
-                ctx.globalCompositeOperation = 'source-over'; // Reset to normal mode
                 break;
             case 'draw_shape_line':
                 ctx.beginPath(); ctx.moveTo(data.startX, data.startY); ctx.lineTo(data.endX, data.endY); ctx.stroke();
