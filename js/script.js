@@ -1,4 +1,4 @@
-// js/script.js - FULLY RE-INTEGRATED AND CONSOLIDATED WITH COLLABORATIVE FEATURES
+      // js/script.js - FULLY RE-INTEGRATED AND CONSOLIDATED WITH COLLABORATIVE FEATURES
 
 document.addEventListener('DOMContentLoaded', function() {
 console.log("Main DOMContentLoaded Fired - AR WhiteBoard Scripts Initializing...");
@@ -766,31 +766,49 @@ function handleArPointerClick(event) {
             };
             if (socket && socket.connected) socket.emit('drawing_action', segmentData);
             lastEmitX = coords.x; lastEmitY = coords.y;
-        } else if (currentLocalTool === 'tool-eraser' && (isDrawingForEmit || (event.buttons && event.buttons === 1))) {
-            // Your local eraser logic - COLLABORATIVE ERASER NOT IMPLEMENTED YET
-            if (!isDrawingLocal) { // Start drawing for eraser if not already
-                isDrawingLocal = true; 
-                ctx.beginPath(); ctx.moveTo(coords.x, coords.y);
-            }
-            const bg = getComputedStyle(canvasElement).backgroundColor;
-            ctx.strokeStyle = (bg && bg !== 'rgba(0, 0, 0, 0)') ? bg : '#FFFFFF'; // Eraser color
-            ctx.lineTo(coords.x, coords.y); ctx.stroke();
-        } else if (isDrawingLocal && currentLocalTool === 'tool-line') {
-            ctx.beginPath(); ctx.moveTo(localStartX, localStartY); ctx.lineTo(coords.x, coords.y); ctx.stroke();
-        } else if (isDrawingLocal && currentLocalTool === 'tool-rectangle') {
-            ctx.beginPath(); ctx.strokeRect(localStartX, localStartY, coords.x - localStartX, coords.y - localStartY);
-        } else if (isDrawingLocal && currentLocalTool === 'tool-circle') {
-            ctx.beginPath(); let r = Math.sqrt(Math.pow(coords.x - localStartX, 2) + Math.pow(coords.y - localStartY, 2));
-            ctx.arc(localStartX, localStartY, r, 0, 2 * Math.PI); ctx.stroke();
-        }
+        } } else if (currentLocalTool === 'tool-eraser' && isDrawingLocal) {
+    // --- COLLABORATIVE ERASER LOGIC ---
+    // Use a special canvas operation to "erase" pixels
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Draw the erase path locally
+    ctx.beginPath();
+    ctx.moveTo(lastEmitX, lastEmitY);
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+
+    // Reset the canvas operation immediately
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Emit the erase path to other users
+    const eraseData = {
+        type: 'erase_segment', // A new event type for erasing
+        startX: lastEmitX,
+        startY: lastEmitY,
+        endX: coords.x,
+        endY: coords.y,
+        lineWidth: currentLocalLineWidth,
+        sessionId: currentSessionIdFromURL,
+        userId: localUserId
+    };
+    if (socket && socket.connected) {
+        socket.emit('drawing_action', eraseData);
+    }
+
+    // Update the last position for the next segment
+    lastEmitX = coords.x;
+    lastEmitY = coords.y;
+}
     }
 
     function handlePointerUp(event) {
-        if (!isDrawingForEmit && !isDrawingLocal && currentLocalTool !== 'tool-text') return;
+        if (!isDrawingLocal) return;
 
         const coords = getCanvasCoordinates(event) || { x: lastEmitX, y: lastEmitY }; // Use last known if event has no coords (e.g. mouseout)
 
-        if (isDrawingLocal && ['tool-line', 'tool-rectangle', 'tool-circle', 'tool-eraser'].includes(currentLocalTool)) {
+       if (isDrawingLocal && ['tool-line', 'tool-rectangle', 'tool-circle'].includes(currentLocalTool)) {
              // Emit final shape/eraser path if it's one of these tools
             let actionData = {
                 tool: currentLocalTool.replace('tool-', ''),
@@ -848,6 +866,15 @@ function handleArPointerClick(event) {
                 break;
             case 'draw_dot':
                 if (data.tool === 'pencil_dot') { ctx.fillStyle = data.color; ctx.beginPath(); ctx.arc(data.x, data.y, data.lineWidth / 2, 0, Math.PI * 2); ctx.fill(); }
+                break;
+            case 'erase_segment':
+                ctx.lineWidth = data.lineWidth;
+                ctx.globalCompositeOperation = 'destination-out'; // Use erase mode
+                ctx.beginPath();
+                ctx.moveTo(data.startX, data.startY);
+                ctx.lineTo(data.endX, data.endY);
+                ctx.stroke();
+                ctx.globalCompositeOperation = 'source-over'; // Reset to normal mode
                 break;
             case 'draw_shape_line':
                 ctx.beginPath(); ctx.moveTo(data.startX, data.startY); ctx.lineTo(data.endX, data.endY); ctx.stroke();
