@@ -18,6 +18,9 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="session-page-body"> <!-- Add class for potential specific body styling -->
+
+     <video id="arVideoFeed" autoplay playsinline style="display: none;"></video>
+
     <!-- tsParticles container -->
     <div id="tsparticles-bg"></div>
 
@@ -97,6 +100,7 @@
                 <div class="tool-actions d-grid gap-2">
                     <button class="btn btn-outline-danger btn-sm" id="clearBoardBtn"><i class="bi bi-trash3-fill me-1"></i> Clear Board</button>
                     <button class="btn btn-outline-success btn-sm" id="saveSessionBtn"><i class="bi bi-save-fill me-1"></i> Save Session</button>
+                    <button class="btn btn-outline-primary btn-sm" id="arModeBtn" style="display: none;"><i class="bi bi-camera-video-fill me-1"></i> AR View</button>
                 </div>
 
                 <hr class="mt-4">
