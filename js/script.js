@@ -684,6 +684,7 @@ function handleArPointerClick(event) {
     }
     
     function handlePointerDown(event) {
+        if (bodyElement.classList.contains('ar-mode-active')) { return; }
         const coords = getCanvasCoordinates(event);
         if (!coords || (event.buttons && event.buttons !== 1 && event.type.startsWith('mouse'))) return; // Only left mouse button
 
