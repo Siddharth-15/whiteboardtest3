@@ -833,3 +833,16 @@ body.ar-mode-active #tsparticles-bg {
     /* Hide the particle background when AR mode is on */
     display: none;
 }
+
+/* === Dynamic AR Mode Enhancements === */
+
+#canvas-ar-wrapper {
+    /* Gives the element a 3D space to move within */
+    perspective: 1000px;
+    transition: transform 0.1s linear;
+}
+
+#canvas-ar-wrapper canvas {
+    /* Smooths out the transformations */
+    transition: transform 0.1s linear;
+}
