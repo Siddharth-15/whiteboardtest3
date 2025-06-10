@@ -319,6 +319,13 @@ if (canvasElement) {
         bodyElement.classList.remove('ar-mode-active');
         arModeBtn.innerHTML = '<i class="bi bi-camera-video-fill me-1"></i> AR View';
 
+        window.removeEventListener('deviceorientation', handleDeviceOrientation);
+
+        // Reset the canvas style when exiting
+        const canvasWrapper = document.getElementById('canvas-ar-wrapper');
+        if(canvasWrapper) canvasWrapper.style.transform = 'none';
+
+
     } else {
         // --- ENTER AR MODE ---
         console.log("Attempting to enter AR Mode.");
@@ -337,6 +344,11 @@ if (canvasElement) {
                 arVideoFeed.style.display = 'block';
                 bodyElement.classList.add('ar-mode-active');
                 arModeBtn.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Exit AR';
+                if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+            } else {
+                console.warn("DeviceOrientationEvent not supported on this device.");
+            }
             })
             .catch(err => {
                 console.error("Error accessing camera for AR Mode:", err);
@@ -345,6 +357,28 @@ if (canvasElement) {
     }
 }
 
+    function handleDeviceOrientation(event) {
+        const canvasWrapper = document.getElementById('canvas-ar-wrapper');
+        if (!canvasWrapper || !bodyElement.classList.contains('ar-mode-active')) {
+            return; // Don't run if not in AR mode
+        }
+
+    // event.gamma is the left-to-right tilt (from -90 to 90)
+    // event.beta is the front-to-back tilt (from -180 to 180)
+        const maxRotationY = 15; // Max rotation in degrees
+        const maxRotationX = 15;
+
+    // Normalize the values
+        let rotY = (event.gamma / 90) * maxRotationY;
+        let rotX = ((event.beta - 90) / 90) * maxRotationX;
+
+    // Clamp the values to the max rotation
+        rotY = Math.max(-maxRotationY, Math.min(maxRotationY, rotY));
+        rotX = Math.max(-maxRotationX, Math.min(maxRotationX, rotX));
+
+    // Apply the 3D rotation to the canvas.
+        canvasWrapper.style.transform = `rotateX(${-rotX}deg) rotateY(${rotY}deg) translateZ(-50px)`;
+    }
     
     function initializeSessionPage() {
         console.log("[SESSION PAGE] initializeSessionPage CALLED");
@@ -405,6 +439,8 @@ if (canvasElement) {
         socket.on('user_joined', handleUserJoined);
         socket.on('user_left', handleUserLeft);
         socket.on('current_participants', handleCurrentParticipants);
+        socket.on('ar_pointer_broadcast', handleArPointerBroadcast);
+
 
         // Load from localStorage if not a joiner and sessionId exists
         if (currentSessionIdFromURL && !joinerNameFromURL) {
@@ -585,6 +621,66 @@ if (canvasElement) {
         canvasElement.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }, { passive: false });
         canvasElement.addEventListener('touchend', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
         canvasElement.addEventListener('touchcancel', (e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }, { passive: false });
+        canvasElement.addEventListener('click', handleArPointerClick);
+    }
+
+
+    
+function handleArPointerClick(event) {
+    // Only run this logic if we are in AR mode
+    if (!bodyElement.classList.contains('ar-mode-active')) {
+        return;
+    }
+
+    // Prevent it from trying to draw
+    event.preventDefault();
+    event.stopPropagation();
+
+    const coords = getCanvasCoordinates(event);
+    if (!coords || !socket || !socket.connected) return;
+
+    // Send relative coordinates (0 to 1) for cross-device compatibility
+    const relativeX = coords.x / canvasElement.width;
+    const relativeY = coords.y / canvasElement.height;
+
+    const pointerData = {
+        x: relativeX,
+        y: relativeY,
+        sessionId: currentSessionIdFromURL,
+        userId: localUserId
+    };
+
+    socket.emit('ar_pointer_action', pointerData);
+    
+    // Show local visual feedback immediately for the AR user
+    handleArPointerBroadcast({ x: relativeX, y: relativeY, userId: 'local' });
+}
+
+    function handleArPointerBroadcast(data) {
+        const pointerEffect = document.createElement('div');
+        pointerEffect.className = 'ar-pointer-effect';
+
+        const x = data.x * canvasElement.width;
+        const y = data.y * canvasElement.height;
+
+        pointerEffect.style.left = `${canvasElement.offsetLeft + x}px`;
+        pointerEffect.style.top = `${canvasElement.offsetTop + y}px`;
+
+    // Give a unique color to each user's pointer
+        if (data.userId !== 'local') {
+            let hash = 0;
+            for (let i = 0; i < data.userId.length; i++) {
+                hash = data.userId.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            pointerEffect.style.borderColor = "#" + "00000".substring(0, 6 - c.length) + c;
+        }
+
+        document.body.appendChild(pointerEffect);
+
+        setTimeout(() => {
+            pointerEffect.remove();
+        }, 600); // Animation duration
     }
     
     function handlePointerDown(event) {
