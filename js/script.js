@@ -436,6 +436,7 @@ if (canvasElement) {
             loadSessionById(currentSessionIdFromURL); // Your existing function
         } else { // New session or joiner
             history = []; historyStep = -1; // Reset local history
+            ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             saveHistory(); // Save initial blank state
         }
         updateUndoRedoButtons(); // Your existing function
@@ -444,11 +445,7 @@ if (canvasElement) {
         console.log("[SESSION PAGE] initializeSessionPage COMPLETED. Session ID:", currentSessionIdFromURL);
     }
     
-    // --- YOUR EXISTING LOCAL DRAWING HELPER FUNCTIONS ---
-    // resizeCanvas, redrawHistoryState, saveHistory, undo, redo, updateUndoRedoButtons
-    // startSessionTimer, updateTimerDisplay, getCanvasCoordinates
-    // activateTextTool, finalizeText, loadSessionById
-    // --- KEEP THEM AS THEY ARE, I'll integrate calls where needed ---
+
     function resizeCanvas() {
         const container = canvasElement.parentElement;
         if (!container) return;
